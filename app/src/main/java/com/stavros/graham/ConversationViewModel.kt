@@ -20,6 +20,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
     private var nextMessageId = 0
+    private var pendingStop = false
     private val settings = Settings(application)
     private var chatClient = buildChatClient()
 
@@ -70,21 +71,11 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                 .trim()
             if (remainingText.isNotBlank()) {
                 _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = remainingText, isUser = false)
+                pendingStop = true
+                _state.value = ConversationState.Speaking
+            } else {
+                performHangup()
             }
-            _messages.value = _messages.value + ChatMessage(
-                id = nextMessageId++,
-                text = "Conversation was stopped",
-                isUser = false,
-                isItalic = true,
-            )
-            val toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, ToneGenerator.MAX_VOLUME)
-            toneGenerator.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 500)
-            // ToneGenerator must be released after the tone finishes playing.
-            viewModelScope.launch {
-                delay(500)
-                toneGenerator.release()
-            }
-            _state.value = ConversationState.Idle
             return
         }
         _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = false)
@@ -93,7 +84,29 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
     fun onSpeakingDone() {
         if (_state.value != ConversationState.Speaking) return
-        _state.value = ConversationState.Listening
+        if (pendingStop) {
+            pendingStop = false
+            performHangup()
+        } else {
+            _state.value = ConversationState.Listening
+        }
+    }
+
+    private fun performHangup() {
+        _messages.value = _messages.value + ChatMessage(
+            id = nextMessageId++,
+            text = "Conversation was stopped",
+            isUser = false,
+            isItalic = true,
+        )
+        val toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, ToneGenerator.MAX_VOLUME)
+        toneGenerator.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 500)
+        // ToneGenerator must be released after the tone finishes playing.
+        viewModelScope.launch {
+            delay(500)
+            toneGenerator.release()
+        }
+        _state.value = ConversationState.Idle
     }
 
     fun stopConversation() {
