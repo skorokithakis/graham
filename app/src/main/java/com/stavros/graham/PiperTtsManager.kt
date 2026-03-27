@@ -26,6 +26,7 @@ class PiperTtsManager(private val context: Context) {
     private var tts: OfflineTts? = null
     private var audioTrack: AudioTrack? = null
     @Volatile private var stopped = false
+    private val settings = Settings(context)
 
     // Copies the model files from assets to the filesystem on first launch so that
     // espeak-ng (which reads files by path, not via AssetManager) can find them.
@@ -115,8 +116,9 @@ class PiperTtsManager(private val context: Context) {
             return@withContext
         }
 
-        Log.d(TAG, "Synthesizing: $text")
-        val audio = engine.generate(text = text, sid = 0, speed = 1.3f)
+        val speed = settings.ttsSpeed
+        Log.d(TAG, "Synthesizing: $text (speed=$speed)")
+        val audio = engine.generate(text = text, sid = 0, speed = speed)
         Log.d(TAG, "Synthesis done: ${audio.samples.size} samples at ${audio.sampleRate} Hz")
 
         val shorts = floatArrayToShortArray(audio.samples)
