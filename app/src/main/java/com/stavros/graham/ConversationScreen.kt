@@ -1,6 +1,7 @@
 package com.stavros.graham
 
 import android.Manifest
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -116,6 +117,7 @@ fun ConversationScreen(
         when (state) {
             ConversationState.Listening -> {
                 audioManager.requestAudioFocus(audioFocusRequest)
+                context.startForegroundService(Intent(context, ConversationService::class.java))
                 speechManager.startListening()
             }
             ConversationState.Speaking -> {
@@ -140,6 +142,7 @@ fun ConversationScreen(
                 speechManager.stopListening()
                 ttsManager.stop()
                 audioManager.abandonAudioFocusRequest(audioFocusRequest)
+                context.stopService(Intent(context, ConversationService::class.java))
             }
         }
     }
