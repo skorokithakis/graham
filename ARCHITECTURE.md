@@ -2,9 +2,9 @@
 
 ## Detected stack
 
-- **Language:** Kotlin (100% of source; `gradle/libs.versions.toml` pins `kotlin = "2.0.21"`)
-- **Platform:** Android (minSdk 34, targetSdk 35, compileSdk 35 — `app/build.gradle.kts`)
-- **UI framework:** Jetpack Compose + Material3 (`compose-bom = "2024.12.01"`, `app/build.gradle.kts`)
+- **Language:** Kotlin 2.0.21 (100% of source; `gradle/libs.versions.toml`)
+- **Platform:** Android — minSdk 34, targetSdk 35, compileSdk 35 (`app/build.gradle.kts`)
+- **UI framework:** Jetpack Compose + Material 3 (`compose-bom = "2024.12.01"`, `app/build.gradle.kts`)
 - **Build system:** Gradle 8 with Kotlin DSL (`build.gradle.kts`, `settings.gradle.kts`); version catalog at `gradle/libs.versions.toml`
 - **AGP version:** 8.7.3
 
@@ -16,20 +16,61 @@
 | `androidx.activity:activity-compose` | 1.9.3 | Compose activity integration |
 | `androidx.lifecycle:lifecycle-viewmodel-compose` | 2.8.7 | ViewModel in Compose |
 | `androidx.compose:compose-bom` | 2024.12.01 | Compose BOM |
-| `androidx.compose.material3:material3` | (BOM-managed) | Material3 UI |
+| `androidx.compose.material3:material3` | (BOM-managed) | Material 3 UI |
 | `com.squareup.okhttp3:okhttp` | 4.12.0 | HTTP client for chat server |
-| `sherpa-onnx-1.12.32.aar` | 1.12.32 (local) | On-device TTS via ONNX runtime (k2-fsa/sherpa-onnx) |
+| `sherpa-onnx-1.12.32.aar` | 1.12.32 (local) | On-device STT + TTS via ONNX runtime (k2-fsa/sherpa-onnx) |
 
 ### Speech / audio
 
 - **STT:** On-device Whisper base int8 via sherpa-onnx `OfflineRecognizer`, with Silero VAD for end-of-speech detection. Audio is captured at 16 kHz mono 16-bit via `AudioRecord`. (`WhisperSpeechRecognizer.kt`)
-- **TTS:** [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) v1.12.32 (local `.aar`) running the **Piper VITS** model `en_US-amy-low.onnx` entirely on-device. Model files live in `app/src/main/assets/vits-piper-en_US-amy-low/`. (`PiperTtsManager.kt`)
+- **TTS:** sherpa-onnx v1.12.32 (local `.aar`) running the **Piper VITS** model `en_US-amy-low.onnx` entirely on-device. Model files live in `app/src/main/assets/vits-piper-en_US-amy-low/`. (`PiperTtsManager.kt`)
 
 ### Deployment / runtime
 
 - Single-module Android app (`include(":app")` in `settings.gradle.kts`).
 - No Docker, CI, or cloud tooling detected.
-- No signing config in `app/build.gradle.kts` (release build has `isMinifyEnabled = false` and no explicit signingConfig).
+- No signing config in `app/build.gradle.kts` (release build has `isMinifyEnabled = false` and no explicit `signingConfig`).
+
+---
+
+## What "dialog" / "conversation" means in this codebase
+
+There is no Android `Dialog` widget anywhere in this app. The word "dialog" does not appear in the source. The concept the codebase uses instead is a **conversation**: a back-and-forth voice exchange between the user and a remote chat server, mediated by on-device STT and TTS.
+
+The conversation is modelled as a four-state machine (`ConversationState.kt`):
+
+```
+Idle → Listening → Sending → Speaking → Listening → …
+```
+
+- **Idle** — nothing is happening; the "Start" button is shown.
+- **Listening** — `AudioRecord` is capturing mic input; Silero VAD watches for speech boundaries; when speech ends, Whisper transcribes it.
+- **Sending** — the transcript has been handed to `ChatClient`, which POSTs it to the configured server URL and awaits a response.
+- **Speaking** — the server's response text is being synthesised and played back by `PiperTtsManager`; when playback finishes the state returns to `Listening` automatically.
+
+The `ConversationViewModel` owns the state machine and the message list (`List<ChatMessage>`). `ConversationScreen` observes both via `StateFlow` and drives `WhisperSpeechRecognizer` and `PiperTtsManager` in response to state changes via `LaunchedEffect(state)`.
+
+---
+
+## How server communication works
+
+**Class:** `ChatClient` (`app/src/main/java/com/stavros/graham/ChatClient.kt`)
+
+**Transport:** OkHttp 4 — a single `OkHttpClient` instance per `ChatClient`, with 120-second timeouts on connect, read, and write.
+
+**Request shape:**
+- Method: `POST`
+- Content-Type: `application/json`
+- URL: user-configurable at runtime (stored in `SharedPreferences` via `Settings.kt`; default `http://10.0.2.2:3000/chat`)
+- Body: a user-configurable JSON template (also in `SharedPreferences`; default `{"message": "$transcript", "source": "graham", "sender": "stavros"}`). The literal string `$transcript` in the template is replaced with the JSON-escaped transcription before sending.
+
+**Authentication:** If the URL contains `user:pass@host` credentials, `ChatClient.parseBasicAuth()` strips them from the URL and adds an `Authorization: Basic …` header. No other auth mechanism exists.
+
+**Response shape:** The server should return a JSON object with a `"response"` string field. If JSON parsing fails, the raw response body is used as-is. A non-2xx HTTP status throws `IOException`.
+
+**Lifecycle:** `ConversationViewModel` constructs a `ChatClient` from the current settings on startup and on every `reloadSettings()` call (triggered when the user saves settings). `ChatClient.shutdown()` drains the OkHttp dispatcher and connection pool.
+
+**Call site:** `ConversationViewModel.onSpeechResult()` calls `chatClient.sendMessage(text)` inside a `viewModelScope.launch` coroutine. The call runs on `Dispatchers.IO` (enforced inside `ChatClient.sendMessage` via `withContext`).
 
 ---
 
@@ -38,19 +79,20 @@
 - **Formatting/linting:** No linter or formatter config found (no `.editorconfig`, no `detekt`, no `ktlint`). `gradle.properties` sets `kotlin.code.style=official`.
 - **Type checking:** Kotlin's own compiler; no additional static analysis tool configured.
 - **Testing:** No test sources or test dependencies found (no `test/` or `androidTest/` directories, no JUnit/Espresso in the version catalog).
-- **Documentation:** No docs folder, no changelog, no README.
+- **Documentation:** `README.md` at repo root; `ARCHITECTURE.md` (this file); no changelog.
 
 ---
 
 ## Linting and testing commands
 
-No linter, formatter, or test runner is configured. The only available command is:
+No linter, formatter, or test runner is configured. The only available commands are:
 
-```
-./gradlew assembleDebug
+```sh
+./gradlew assembleDebug   # build a debug APK
+./gradlew installDebug    # build and install on a connected device
 ```
 
-(from `gradlew` at repo root)
+(from `gradlew` at repo root, documented in `README.md`)
 
 ---
 
@@ -59,20 +101,25 @@ No linter, formatter, or test runner is configured. The only available command i
 ```
 app/build.gradle.kts              — all dependencies and Android config
 gradle/libs.versions.toml         — version catalog (single source of truth for versions)
+app/src/main/AndroidManifest.xml  — permissions (RECORD_AUDIO, INTERNET, FOREGROUND_SERVICE_MICROPHONE) and service declaration
 app/src/main/java/com/stavros/graham/
-  MainActivity.kt                 — entry point; Compose host, screen routing
-  ConversationViewModel.kt        — central state machine (Idle→Listening→Sending→Speaking)
-  ConversationScreen.kt           — main UI
-  WhisperSpeechRecognizer.kt      — wraps sherpa-onnx Whisper + Silero VAD; STT
-  PiperTtsManager.kt              — wraps sherpa-onnx VITS; on-device TTS
-  ChatClient.kt                   — OkHttp POST to configurable chat server
-  Settings.kt                     — SharedPreferences wrapper (server URL, body template)
+  MainActivity.kt                 — entry point; Compose host; ModalNavigationDrawer routing across 4 destinations
+  ConversationViewModel.kt        — owns the state machine (Idle→Listening→Sending→Speaking) and message list
+  ConversationScreen.kt           — main UI; drives WhisperSpeechRecognizer and PiperTtsManager via LaunchedEffect(state)
   ConversationState.kt            — enum: Idle, Listening, Sending, Speaking
-  ChatMessage.kt                  — data class for conversation messages
-  SettingsScreen.kt               — settings UI
+  ChatMessage.kt                  — data class: id, text, isUser
+  ChatClient.kt                   — OkHttp POST to configurable server; basic-auth parsing; JSON body templating
+  Settings.kt                     — SharedPreferences wrapper: serverUrl, bodyTemplate, ttsSpeed
+  WhisperSpeechRecognizer.kt      — sherpa-onnx Whisper + Silero VAD; AudioRecord loop; asset-to-disk copy
+  PiperTtsManager.kt              — sherpa-onnx Piper VITS; AudioTrack streaming playback; asset-to-disk copy
+  ConversationService.kt          — foreground service (FOREGROUND_SERVICE_TYPE_MICROPHONE) to keep mic alive in background
+  SettingsScreen.kt               — settings UI: server URL, body template, TTS speed slider
+  InfoScreens.kt                  — AboutScreen and ModelStatusScreen (filesystem checks for model files)
+  WaveformIndicator.kt            — animated bar waveform driven by RMS level during Listening state
 app/src/main/assets/vits-piper-en_US-amy-low/
-                                  — bundled Piper TTS model + espeak-ng phoneme data (~large)
-app/libs/sherpa-onnx-1.12.32.aar  — local ONNX runtime AAR (not from Maven)
+                                  — bundled Piper TTS model + espeak-ng phoneme data (large; not in git, downloaded by script)
+app/libs/sherpa-onnx-1.12.32.aar  — local ONNX runtime AAR (not from Maven; downloaded by download-models.sh)
+download-models.sh                — downloads all model files and the sherpa-onnx AAR before first build
 ```
 
 ---
@@ -81,18 +128,21 @@ app/libs/sherpa-onnx-1.12.32.aar  — local ONNX runtime AAR (not from Maven)
 
 ### Do
 
-- **Fresh recognizer instance per session.** `WhisperSpeechRecognizer` creates a new `OfflineRecognizer` and `AudioRecord` for each `startListening()` call and tears them down on stop/error, avoiding state leakage between sessions. (`WhisperSpeechRecognizer.kt`)
-- **Coroutines for async work.** TTS synthesis and HTTP calls run on `Dispatchers.Default` / `Dispatchers.IO` via `withContext`; UI state is `StateFlow`. (`PiperTtsManager.kt`, `ChatClient.kt`, `ConversationViewModel.kt`)
-- **Sentinel file for asset copy.** A `.copy_complete` marker prevents silently using a partially-copied model directory after a crash. (`PiperTtsManager.kt:ensureModelOnDisk`)
-- **`CancellationException` re-throw.** The `catch (exception: Exception)` block in `ConversationViewModel` explicitly re-throws `CancellationException` to preserve coroutine cancellation semantics. (`ConversationViewModel.kt:42-46`)
-- **Basic auth parsed from URL.** `ChatClient` strips `user:pass@` from the server URL and converts it to an `Authorization: Basic …` header rather than storing credentials separately. (`ChatClient.kt:parseBasicAuth`)
+- **State machine via `StateFlow`.** All conversation state is a single `MutableStateFlow<ConversationState>` in `ConversationViewModel`; the UI and audio subsystems react to it via `collectAsState()` and `LaunchedEffect(state)`. (`ConversationViewModel.kt`, `ConversationScreen.kt`)
+- **Coroutines for all async work.** TTS synthesis and HTTP calls run on `Dispatchers.Default` / `Dispatchers.IO` via `withContext`; recording runs on a `SupervisorJob`-backed `CoroutineScope(Dispatchers.IO)`. (`PiperTtsManager.kt`, `ChatClient.kt`, `WhisperSpeechRecognizer.kt`)
+- **`CancellationException` re-throw.** Every `catch (exception: Exception)` block that is not specifically scoped to a non-coroutine context explicitly re-throws `CancellationException`. (`ConversationViewModel.kt:46`, `ConversationScreen.kt:104,131`)
+- **Sentinel file for asset copy.** A `.copy_complete` marker prevents silently using a partially-copied model directory after a crash; the directory is deleted and re-copied if the sentinel is absent. (`PiperTtsManager.kt:ensureModelOnDisk`, `WhisperSpeechRecognizer.kt:ensureModelsOnDisk`)
+- **Basic auth parsed from URL.** `ChatClient.parseBasicAuth()` strips `user:pass@` from the server URL and converts it to an `Authorization: Basic …` header rather than storing credentials separately. (`ChatClient.kt:70-84`)
+- **`SupervisorJob` for the recording scope.** A failed recording coroutine does not cancel the enclosing scope, so a subsequent `startListening()` call can launch a new coroutine. (`WhisperSpeechRecognizer.kt:49`)
+- **`currentCoroutineContext().ensureActive()` in the audio write loop.** Playback can be cancelled cooperatively mid-stream without waiting for the full buffer to drain. (`PiperTtsManager.kt:181`)
 
 ### Don't
 
-- **No broad exception swallowing.** The one `catch (_: Exception)` in `ChatClient` is scoped only to JSON parsing fallback (returns raw body instead of crashing). (`ChatClient.kt:44`)
-- **No platform STT delegation.** STT does not use Android's `SpeechRecognizer` service; all recognition runs on-device via sherpa-onnx.
+- **No broad exception swallowing.** The one `catch (_: Exception)` in `ChatClient` is scoped only to JSON parsing fallback (returns raw body instead of crashing). (`ChatClient.kt:49`)
+- **No platform STT.** STT does not use Android's `SpeechRecognizer` service; all recognition runs on-device via sherpa-onnx. (no `android.speech` import anywhere)
 - **No dependency injection framework.** Objects are constructed directly; no Hilt, Koin, or Dagger.
-- **No navigation library.** Screen routing is a simple `var showSettings: Boolean` state variable in `MainActivity`. (`MainActivity.kt`)
+- **No navigation library.** Screen routing is a `var currentDestination: NavigationDestination` state variable in `MainActivity`, switched by a `ModalNavigationDrawer`. (`MainActivity.kt:58,119-131`)
+- **No Android `Dialog` widgets.** There are no `AlertDialog`, `BottomSheetDialog`, or similar modal overlays anywhere in the codebase.
 
 ---
 
@@ -100,4 +150,5 @@ app/libs/sherpa-onnx-1.12.32.aar  — local ONNX runtime AAR (not from Maven)
 
 1. **No tests exist.** It is unclear whether tests are planned or intentionally omitted. Any new logic has no test harness to validate against.
 2. **Release signing.** `app/build.gradle.kts` has no `signingConfig` for the release build type. How release APKs/AABs are signed is not captured in the repo.
-3. **Chat server protocol.** The server URL and JSON body template are user-configurable at runtime. The expected server-side API shape (beyond returning `{"response": "..."}`) is not documented in the repo.
+3. **Chat server protocol.** The server URL and JSON body template are user-configurable at runtime. The expected server-side API shape (beyond returning `{"response": "..."}` or plain text) is not documented in the repo. The default template sends `{"message": "...", "source": "graham", "sender": "stavros"}`.
+4. **Conversation history.** `ChatClient.sendMessage()` sends only the current transcript — no prior messages. Whether the server maintains session state is unknown and not handled client-side.

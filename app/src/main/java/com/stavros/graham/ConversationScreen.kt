@@ -1,6 +1,7 @@
 package com.stavros.graham
 
 import android.Manifest
+import com.stavros.graham.stripMarkdown
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -28,6 +29,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CancellationException
@@ -125,7 +129,7 @@ fun ConversationScreen(
                 val text = messages.lastOrNull { !it.isUser }?.text
                 if (text != null) {
                     try {
-                        ttsManager.speak(text)
+                        ttsManager.speak(stripMarkdown(text))
                         conversationViewModel.onSpeakingDone()
                     } catch (exception: Exception) {
                         if (exception is CancellationException) throw exception
@@ -233,14 +237,22 @@ private fun MessageBubble(message: ChatMessage) {
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            Text(
-                text = message.text,
-                color = if (message.isUser) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                },
-            )
+            if (!message.isUser && !message.isItalic) {
+                Markdown(
+                    content = message.text,
+                    colors = markdownColor(text = MaterialTheme.colorScheme.onSecondaryContainer),
+                )
+            } else {
+                Text(
+                    text = message.text,
+                    color = if (message.isUser) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    },
+                    fontStyle = if (message.isItalic) FontStyle.Italic else null,
+                )
+            }
         }
     }
 }

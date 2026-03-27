@@ -1,9 +1,12 @@
 package com.stavros.graham
 
 import android.app.Application
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,11 +39,12 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
     fun onSpeechResult(text: String) {
         if (_state.value != ConversationState.Listening) return
-        _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = text, isUser = true)
+        val trimmedText = text.trim()
+        _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = true)
         _state.value = ConversationState.Sending
         viewModelScope.launch {
             try {
-                val response = chatClient.sendMessage(text)
+                val response = chatClient.sendMessage(trimmedText)
                 onBotResponse(response)
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
@@ -58,7 +62,25 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
     fun onBotResponse(text: String) {
         if (_state.value != ConversationState.Sending) return
-        _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = text, isUser = false)
+        val trimmedText = text.trim()
+        if (trimmedText == "/stop") {
+            _messages.value = _messages.value + ChatMessage(
+                id = nextMessageId++,
+                text = "Conversation was stopped",
+                isUser = false,
+                isItalic = true,
+            )
+            val toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, ToneGenerator.MAX_VOLUME)
+            toneGenerator.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 500)
+            // ToneGenerator must be released after the tone finishes playing.
+            viewModelScope.launch {
+                delay(500)
+                toneGenerator.release()
+            }
+            _state.value = ConversationState.Idle
+            return
+        }
+        _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = false)
         _state.value = ConversationState.Speaking
     }
 

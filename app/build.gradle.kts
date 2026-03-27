@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
     implementation(libs.okhttp)
+    implementation(libs.markdown.renderer.m3)
     implementation(files("libs/sherpa-onnx-1.12.32.aar"))
     debugImplementation(libs.compose.ui.tooling)
 }
