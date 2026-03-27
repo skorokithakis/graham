@@ -18,6 +18,7 @@
 | `androidx.compose:compose-bom` | 2024.12.01 | Compose BOM |
 | `androidx.compose.material3:material3` | (BOM-managed) | Material 3 UI |
 | `com.squareup.okhttp3:okhttp` | 4.12.0 | HTTP client for chat server |
+| `com.mikepenz:multiplatform-markdown-renderer-m3` | 0.27.0 | Renders Markdown in bot message bubbles |
 | `sherpa-onnx-1.12.32.aar` | 1.12.32 (local) | On-device STT + TTS via ONNX runtime (k2-fsa/sherpa-onnx) |
 
 ### Speech / audio

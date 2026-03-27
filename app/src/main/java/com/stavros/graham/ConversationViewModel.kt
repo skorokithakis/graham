@@ -63,7 +63,14 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     fun onBotResponse(text: String) {
         if (_state.value != ConversationState.Sending) return
         val trimmedText = text.trim()
-        if (trimmedText == "/stop") {
+        if (trimmedText.lines().any { it.trim() == "/stop" }) {
+            val remainingText = trimmedText.lines()
+                .filter { it.trim() != "/stop" }
+                .joinToString("\n")
+                .trim()
+            if (remainingText.isNotBlank()) {
+                _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = remainingText, isUser = false)
+            }
             _messages.value = _messages.value + ChatMessage(
                 id = nextMessageId++,
                 text = "Conversation was stopped",
