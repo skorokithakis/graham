@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Graham logo scaled to the 108×108dp adaptive icon canvas. The safe zone
-    for adaptive icons is the central 72dp, so the 24×24 source paths are
-    scaled by 3× and translated by 18dp to centre them in that safe zone.
+    for adaptive icons is the central 66dp, so the 24×24 source paths are
+    scaled by 2.25× and translated by 27dp to centre them in that safe zone.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -12,51 +12,51 @@
 
     <!--
         Speech bubble outline. Source pathData from ic_graham_logo.xml,
-        scaled 3× (multiply all coordinates by 3) and shifted +18 on both
-        axes so the 72×72 content sits centred in the 108×108 canvas.
+        scaled 2.25× (multiply all coordinates by 2.25) and shifted +27 on
+        both axes so the 54×54 content sits centred in the 108×108 canvas.
     -->
     <path
         android:fillColor="#FFFFFFFF"
         android:pathData="
-            M30,27
-            C24.029,27 19,32.029 19,38
-            L19,63
-            C19,68.971 24.029,74 30,74
-            L39,74
-            L39,81
-            L51,74
-            L78,74
-            C83.971,74 89,68.971 89,63
-            L89,38
-            C89,32.029 83.971,27 78,27
+            M36,33.75
+            C31.522,33.75 27.75,37.522 27.75,42
+            L27.75,60.75
+            C27.75,65.228 31.522,69 36,69
+            L42.75,69
+            L42.75,74.25
+            L51.75,69
+            L72,69
+            C76.478,69 80.25,65.228 80.25,60.75
+            L80.25,42
+            C80.25,37.522 76.478,33.75 72,33.75
             Z
-            M30,33
-            L78,33
-            C79.656,33 81,34.344 81,36
-            L81,63
-            C81,64.656 79.656,66 78,66
-            L49.5,66
-            L45,70.5
-            L45,66
-            L30,66
-            C28.344,66 27,64.656 27,63
-            L27,36
-            C27,34.344 28.344,33 30,33
+            M36,38.25
+            L72,38.25
+            C73.242,38.25 74.25,39.258 74.25,40.5
+            L74.25,60.75
+            C74.25,61.992 73.242,63 72,63
+            L50.625,63
+            L47.25,66.375
+            L47.25,63
+            L36,63
+            C34.758,63 33.75,61.992 33.75,60.75
+            L33.75,40.5
+            C33.75,39.258 34.758,38.25 36,38.25
             Z" />
 
     <!-- Left waveform bar: short -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M39,45 L39,54 C39,55.656 40.344,57 42,57 C43.656,57 45,55.656 45,54 L45,45 C45,43.344 43.656,42 42,42 C40.344,42 39,43.344 39,45 Z" />
+        android:pathData="M42.75,47.25 L42.75,54 C42.75,55.242 43.758,56.25 45,56.25 C46.242,56.25 47.25,55.242 47.25,54 L47.25,47.25 C47.25,46.008 46.242,45 45,45 C43.758,45 42.75,46.008 42.75,47.25 Z" />
 
     <!-- Centre waveform bar: tall -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M51,39 L51,60 C51,61.656 52.344,63 54,63 C55.656,63 57,61.656 57,60 L57,39 C57,37.344 55.656,36 54,36 C52.344,36 51,37.344 51,39 Z" />
+        android:pathData="M51.75,42.75 L51.75,58.5 C51.75,59.742 52.758,60.75 54,60.75 C55.242,60.75 56.25,59.742 56.25,58.5 L56.25,42.75 C56.25,41.508 55.242,40.5 54,40.5 C52.758,40.5 51.75,41.508 51.75,42.75 Z" />
 
     <!-- Right waveform bar: short -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M63,45 L63,54 C63,55.656 64.344,57 66,57 C67.656,57 69,55.656 69,54 L69,45 C69,43.344 67.656,42 66,42 C64.344,42 63,43.344 63,45 Z" />
+        android:pathData="M60.75,47.25 L60.75,54 C60.75,55.242 61.758,56.25 63,56.25 C64.242,56.25 65.25,55.242 65.25,54 L65.25,47.25 C65.25,46.008 64.242,45 63,45 C61.758,45 60.75,46.008 60.75,47.25 Z" />
 
 </vector>
