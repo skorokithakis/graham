@@ -35,7 +35,7 @@ AAR.
 
 ### Configuration
 
-In the app, tap **Settings** to configure:
+In the app, open the drawer and tap **Settings** to configure:
 
 - **Server URL**: The HTTP endpoint that receives transcripts.
 - **Body template**: The JSON body sent to the server. Use `$transcript` as a

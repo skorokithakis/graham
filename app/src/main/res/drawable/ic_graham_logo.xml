@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Speech bubble with a three-bar waveform inside, representing Graham's
+    voice-conversation nature. Single-color so the caller can tint freely.
+    Viewbox is 24×24 to match the standard Material icon grid.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!--
+        Speech bubble outline: rounded rectangle with a small tail at the
+        bottom-left. Uses an even-odd fill so the interior stays transparent
+        and the waveform bars below are drawn on top cleanly.
+    -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="
+            M4,3
+            C2.343,3 1,4.343 1,6
+            L1,15
+            C1,16.657 2.343,18 4,18
+            L7,18
+            L7,21
+            L11,18
+            L20,18
+            C21.657,18 23,16.657 23,15
+            L23,6
+            C23,4.343 21.657,3 20,3
+            Z
+            M4,5
+            L20,5
+            C20.552,5 21,5.448 21,6
+            L21,15
+            C21,15.552 20.552,16 20,16
+            L10.5,16
+            L9,17.5
+            L9,16
+            L4,16
+            C3.448,16 3,15.552 3,15
+            L3,6
+            C3,5.448 3.448,5 4,5
+            Z" />
+
+    <!-- Left waveform bar: short -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M7,9 L7,12 C7,12.552 7.448,13 8,13 C8.552,13 9,12.552 9,12 L9,9 C9,8.448 8.552,8 8,8 C7.448,8 7,8.448 7,9 Z" />
+
+    <!-- Centre waveform bar: tall -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M11,7 L11,14 C11,14.552 11.448,15 12,15 C12.552,15 13,14.552 13,14 L13,7 C13,6.448 12.552,6 12,6 C11.448,6 11,6.448 11,7 Z" />
+
+    <!-- Right waveform bar: short -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M15,9 L15,12 C15,12.552 15.448,13 16,13 C16.552,13 17,12.552 17,12 L17,9 C17,8.448 16.552,8 16,8 C15.448,8 15,8.448 15,9 Z" />
+
+</vector>

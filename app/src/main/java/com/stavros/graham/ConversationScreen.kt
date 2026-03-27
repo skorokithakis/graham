@@ -14,19 +14,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,14 +42,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 
 private const val TAG = "ConversationScreen"
 
 @Composable
 fun ConversationScreen(
     conversationViewModel: ConversationViewModel = viewModel(),
-    onOpenSettings: () -> Unit = {},
 ) {
     val state by conversationViewModel.state.collectAsState()
     val messages by conversationViewModel.messages.collectAsState()
@@ -91,6 +87,10 @@ fun ConversationScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            speechManager.stopListening()
+            ttsManager.stop()
+            audioManager.abandonAudioFocusRequest(audioFocusRequest)
+            context.stopService(Intent(context, ConversationService::class.java))
             speechManager.destroy()
             ttsManager.destroy()
         }
@@ -165,39 +165,28 @@ fun ConversationScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            Button(onClick = onOpenSettings) {
-                Text("Settings")
-            }
-        }
-
+    // The Scaffold in MainActivity already applies innerPadding (top bar + nav bar) to
+    // the wrapping Surface, so no additional system-bar inset handling is needed here.
+    Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(messages, key = { it.id }) { message ->
                 MessageBubble(message = message)
             }
         }
 
+        HorizontalDivider()
         StatusBar(state = state, rmsLevel = rmsLevel)
+        HorizontalDivider()
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.Center,
         ) {
             if (state == ConversationState.Idle) {
@@ -233,16 +222,16 @@ private fun MessageBubble(message: ChatMessage) {
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .widthIn(max = 300.dp)
                 .background(
                     color = if (message.isUser) {
                         MaterialTheme.colorScheme.primaryContainer
                     } else {
                         MaterialTheme.colorScheme.secondaryContainer
                     },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                 )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Text(
                 text = message.text,
@@ -272,7 +261,7 @@ private fun StatusBar(state: ConversationState, rmsLevel: Float) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
