@@ -23,7 +23,7 @@
 
 ### Speech / audio
 
-- **STT:** On-device Whisper base int8 via sherpa-onnx `OfflineRecognizer`, with Silero VAD for end-of-speech detection. Audio is captured at 16 kHz mono 16-bit via `AudioRecord`. (`WhisperSpeechRecognizer.kt`)
+- **STT:** On-device Parakeet TDT-CTC 110M via sherpa-onnx `OfflineRecognizer` (`OfflineNemoEncDecCtcModelConfig`), with Silero VAD for end-of-speech detection. Audio is captured at 16 kHz mono 16-bit via `AudioRecord`. Model files live in `app/src/main/assets/parakeet-tdt-ctc-110m/`. (`SpeechRecognizer.kt`)
 - **TTS:** sherpa-onnx v1.12.32 (local `.aar`) running the **Piper VITS** model `en_US-amy-low.onnx` entirely on-device. Model files live in `app/src/main/assets/vits-piper-en_US-amy-low/`. (`PiperTtsManager.kt`)
 
 ### Deployment / runtime
@@ -45,11 +45,11 @@ Idle → Listening → Sending → Speaking → Listening → …
 ```
 
 - **Idle** — nothing is happening; the "Start" button is shown.
-- **Listening** — `AudioRecord` is capturing mic input; Silero VAD watches for speech boundaries; when speech ends, Whisper transcribes it.
+- **Listening** — `AudioRecord` is capturing mic input; Silero VAD watches for speech boundaries; when speech ends, Parakeet TDT-CTC 110M transcribes it.
 - **Sending** — the transcript has been handed to `ChatClient`, which POSTs it to the configured server URL and awaits a response.
 - **Speaking** — the server's response text is being synthesised and played back by `PiperTtsManager`; when playback finishes the state returns to `Listening` automatically.
 
-The `ConversationViewModel` owns the state machine and the message list (`List<ChatMessage>`). `ConversationScreen` observes both via `StateFlow` and drives `WhisperSpeechRecognizer` and `PiperTtsManager` in response to state changes via `LaunchedEffect(state)`.
+The `ConversationViewModel` owns the state machine and the message list (`List<ChatMessage>`). `ConversationScreen` observes both via `StateFlow` and drives `SpeechRecognizer` and `PiperTtsManager` in response to state changes via `LaunchedEffect(state)`.
 
 ---
 
@@ -106,12 +106,12 @@ app/src/main/AndroidManifest.xml  — permissions (RECORD_AUDIO, INTERNET, FOREG
 app/src/main/java/com/stavros/graham/
   MainActivity.kt                 — entry point; Compose host; ModalNavigationDrawer routing across 4 destinations
   ConversationViewModel.kt        — owns the state machine (Idle→Listening→Sending→Speaking) and message list
-  ConversationScreen.kt           — main UI; drives WhisperSpeechRecognizer and PiperTtsManager via LaunchedEffect(state)
+  ConversationScreen.kt           — main UI; drives SpeechRecognizer and PiperTtsManager via LaunchedEffect(state)
   ConversationState.kt            — enum: Idle, Listening, Sending, Speaking
   ChatMessage.kt                  — data class: id, text, isUser
   ChatClient.kt                   — OkHttp POST to configurable server; basic-auth parsing; JSON body templating
   Settings.kt                     — SharedPreferences wrapper: serverUrl, bodyTemplate, ttsSpeed
-  WhisperSpeechRecognizer.kt      — sherpa-onnx Whisper + Silero VAD; AudioRecord loop; asset-to-disk copy
+  SpeechRecognizer.kt             — sherpa-onnx Parakeet TDT-CTC 110M + Silero VAD; AudioRecord loop; asset-to-disk copy
   PiperTtsManager.kt              — sherpa-onnx Piper VITS; AudioTrack streaming playback; asset-to-disk copy
   ConversationService.kt          — foreground service (FOREGROUND_SERVICE_TYPE_MICROPHONE) to keep mic alive in background
   SettingsScreen.kt               — settings UI: server URL, body template, TTS speed slider
@@ -130,11 +130,11 @@ download-models.sh                — downloads all model files and the sherpa-o
 ### Do
 
 - **State machine via `StateFlow`.** All conversation state is a single `MutableStateFlow<ConversationState>` in `ConversationViewModel`; the UI and audio subsystems react to it via `collectAsState()` and `LaunchedEffect(state)`. (`ConversationViewModel.kt`, `ConversationScreen.kt`)
-- **Coroutines for all async work.** TTS synthesis and HTTP calls run on `Dispatchers.Default` / `Dispatchers.IO` via `withContext`; recording runs on a `SupervisorJob`-backed `CoroutineScope(Dispatchers.IO)`. (`PiperTtsManager.kt`, `ChatClient.kt`, `WhisperSpeechRecognizer.kt`)
+- **Coroutines for all async work.** TTS synthesis and HTTP calls run on `Dispatchers.Default` / `Dispatchers.IO` via `withContext`; recording runs on a `SupervisorJob`-backed `CoroutineScope(Dispatchers.IO)`. (`PiperTtsManager.kt`, `ChatClient.kt`, `SpeechRecognizer.kt`)
 - **`CancellationException` re-throw.** Every `catch (exception: Exception)` block that is not specifically scoped to a non-coroutine context explicitly re-throws `CancellationException`. (`ConversationViewModel.kt:46`, `ConversationScreen.kt:104,131`)
-- **Sentinel file for asset copy.** A `.copy_complete` marker prevents silently using a partially-copied model directory after a crash; the directory is deleted and re-copied if the sentinel is absent. (`PiperTtsManager.kt:ensureModelOnDisk`, `WhisperSpeechRecognizer.kt:ensureModelsOnDisk`)
+- **Sentinel file for asset copy.** A `.copy_complete` marker prevents silently using a partially-copied model directory after a crash; the directory is deleted and re-copied if the sentinel is absent. (`PiperTtsManager.kt:ensureModelOnDisk`, `SpeechRecognizer.kt:ensureModelsOnDisk`)
 - **Basic auth parsed from URL.** `ChatClient.parseBasicAuth()` strips `user:pass@` from the server URL and converts it to an `Authorization: Basic …` header rather than storing credentials separately. (`ChatClient.kt:70-84`)
-- **`SupervisorJob` for the recording scope.** A failed recording coroutine does not cancel the enclosing scope, so a subsequent `startListening()` call can launch a new coroutine. (`WhisperSpeechRecognizer.kt:49`)
+- **`SupervisorJob` for the recording scope.** A failed recording coroutine does not cancel the enclosing scope, so a subsequent `startListening()` call can launch a new coroutine. (`SpeechRecognizer.kt:48`)
 - **`currentCoroutineContext().ensureActive()` in the audio write loop.** Playback can be cancelled cooperatively mid-stream without waiting for the full buffer to drain. (`PiperTtsManager.kt:181`)
 
 ### Don't

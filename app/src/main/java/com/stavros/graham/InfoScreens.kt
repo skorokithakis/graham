@@ -74,7 +74,7 @@ fun AboutScreen() {
         )
         listOf(
             "UI: Jetpack Compose + Material 3",
-            "STT: sherpa-onnx Whisper base int8 + Silero VAD",
+            "STT: sherpa-onnx Parakeet TDT-CTC 110M + Silero VAD",
             "TTS: sherpa-onnx Piper VITS (en_US-amy-low)",
             "HTTP: OkHttp 4",
         ).forEach { line ->
@@ -91,12 +91,11 @@ fun ModelStatusScreen() {
     val context = LocalContext.current
 
     // All checks are pure filesystem reads; no async work is needed.
-    val whisperStatuses = remember {
-        val directory = File(context.filesDir, "whisper-base")
+    val asrStatuses = remember {
+        val directory = File(context.filesDir, "parakeet-tdt-ctc-110m")
         listOf(
-            "base-encoder.int8.onnx",
-            "base-decoder.int8.onnx",
-            "base-tokens.txt",
+            "model.onnx",
+            "tokens.txt",
             "silero_vad.onnx",
         ).map { filename ->
             val file = File(directory, filename)
@@ -171,7 +170,7 @@ fun ModelStatusScreen() {
             style = MaterialTheme.typography.headlineMedium,
         )
 
-        ModelSection(title = "Whisper (filesDir/whisper-base)", statuses = whisperStatuses)
+        ModelSection(title = "Parakeet (filesDir/parakeet-tdt-ctc-110m)", statuses = asrStatuses)
         ModelSection(
             title = "Piper (filesDir/vits-piper-en_US-amy-low)",
             statuses = piperStatuses,

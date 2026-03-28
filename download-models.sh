@@ -17,21 +17,18 @@ download_if_missing() {
 	curl -L --progress-bar -o "$output_path" "$source_url"
 }
 
-echo "Downloading Whisper base (int8) models..."
-mkdir -p "$ASSETS_DIR/whisper-base"
+echo "Downloading Parakeet TDT-CTC 110M models..."
+mkdir -p "$ASSETS_DIR/parakeet-tdt-ctc-110m"
 download_if_missing \
-	"$ASSETS_DIR/whisper-base/base-encoder.int8.onnx" \
-	"https://huggingface.co/csukuangfj/sherpa-onnx-whisper-base/resolve/main/base-encoder.int8.onnx"
+	"$ASSETS_DIR/parakeet-tdt-ctc-110m/model.onnx" \
+	"https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000/resolve/main/model.onnx"
 download_if_missing \
-	"$ASSETS_DIR/whisper-base/base-decoder.int8.onnx" \
-	"https://huggingface.co/csukuangfj/sherpa-onnx-whisper-base/resolve/main/base-decoder.int8.onnx"
-download_if_missing \
-	"$ASSETS_DIR/whisper-base/base-tokens.txt" \
-	"https://huggingface.co/csukuangfj/sherpa-onnx-whisper-base/resolve/main/base-tokens.txt"
+	"$ASSETS_DIR/parakeet-tdt-ctc-110m/tokens.txt" \
+	"https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000/resolve/main/tokens.txt"
 
 echo "Downloading Silero VAD model..."
 download_if_missing \
-	"$ASSETS_DIR/whisper-base/silero_vad.onnx" \
+	"$ASSETS_DIR/parakeet-tdt-ctc-110m/silero_vad.onnx" \
 	"https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
 
 echo "Downloading Piper TTS model (en_US-amy-low)..."

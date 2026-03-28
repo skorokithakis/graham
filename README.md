@@ -1,7 +1,7 @@
 # Graham
 
 A voice conversation Android app. Graham records your speech, transcribes it
-locally with Whisper, sends the text to a configurable HTTP endpoint, and speaks
+locally with Parakeet TDT-CTC 110M, sends the text to a configurable HTTP endpoint, and speaks
 the response back using Piper TTS. Everything runs on-device except the chat
 backend.
 
@@ -9,7 +9,7 @@ backend.
 
 1. Press **Start** to begin a conversation.
 2. Speak naturally. Silero VAD detects when you stop talking.
-3. Your speech is transcribed by Whisper (base, int8 quantized) via sherpa-onnx.
+3. Your speech is transcribed by Parakeet TDT-CTC 110M via sherpa-onnx.
 4. The transcript is POSTed to your configured server URL.
 5. The server's response is spoken back with Piper TTS.
 6. The app listens again automatically for your next turn.
@@ -30,7 +30,7 @@ building:
 ./download-models.sh
 ```
 
-This downloads Whisper base (int8), Silero VAD, Piper TTS, and the sherpa-onnx
+This downloads Parakeet TDT-CTC 110M, Silero VAD, Piper TTS, and the sherpa-onnx
 AAR.
 
 ### Configuration
@@ -53,6 +53,6 @@ The server should return a JSON object with a `response` field, or plain text.
 ## Stack
 
 - Kotlin, Jetpack Compose, Material 3
-- sherpa-onnx for both STT (Whisper) and TTS (Piper)
+- sherpa-onnx for both STT (Parakeet TDT-CTC 110M) and TTS (Piper)
 - Silero VAD for speech boundary detection
 - OkHttp for the chat backend

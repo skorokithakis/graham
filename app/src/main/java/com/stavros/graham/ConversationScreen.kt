@@ -72,7 +72,7 @@ fun ConversationScreen(
     }
 
     val speechManager = remember {
-        WhisperSpeechRecognizer(
+        SpeechRecognizer(
             context = context,
             onResult = { text ->
                 rmsLevel = 0f

@@ -6,9 +6,9 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineNemoEncDecCtcModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
-import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
@@ -22,18 +22,17 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
 
-private const val TAG = "WhisperSpeechRecognizer"
-private const val ASSET_DIR = "whisper-base"
-private const val ENCODER_FILE = "base-encoder.int8.onnx"
-private const val DECODER_FILE = "base-decoder.int8.onnx"
-private const val TOKENS_FILE = "base-tokens.txt"
+private const val TAG = "SpeechRecognizer"
+private const val ASSET_DIR = "parakeet-tdt-ctc-110m"
+private const val MODEL_FILE = "model.onnx"
+private const val TOKENS_FILE = "tokens.txt"
 private const val VAD_MODEL_FILE = "silero_vad.onnx"
 private const val SAMPLE_RATE = 16000
 
 // Silero VAD expects exactly 512 samples per window at 16kHz.
 private const val VAD_WINDOW_SIZE = 512
 
-class WhisperSpeechRecognizer(
+class SpeechRecognizer(
     private val context: Context,
     private val onResult: (String) -> Unit,
     private val onError: (String) -> Unit,
@@ -101,7 +100,7 @@ class WhisperSpeechRecognizer(
     }
 
     suspend fun initialize(): Unit = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Initializing WhisperSpeechRecognizer")
+        Log.d(TAG, "Initializing SpeechRecognizer")
         val modelDir = ensureModelsOnDisk()
 
         val sileroConfig = SileroVadModelConfig()
@@ -122,15 +121,11 @@ class WhisperSpeechRecognizer(
         vad = Vad(assetManager = null, config = vadConfig)
         Log.d(TAG, "VAD initialized")
 
-        val whisperConfig = OfflineWhisperModelConfig()
-        whisperConfig.encoder = File(modelDir, ENCODER_FILE).absolutePath
-        whisperConfig.decoder = File(modelDir, DECODER_FILE).absolutePath
-        whisperConfig.language = "en"
-        whisperConfig.task = "transcribe"
-        whisperConfig.tailPaddings = -1
+        val nemoConfig = OfflineNemoEncDecCtcModelConfig()
+        nemoConfig.model = File(modelDir, MODEL_FILE).absolutePath
 
         val modelConfig = OfflineModelConfig()
-        modelConfig.whisper = whisperConfig
+        modelConfig.nemo = nemoConfig
         modelConfig.tokens = File(modelDir, TOKENS_FILE).absolutePath
         modelConfig.numThreads = 2
         modelConfig.provider = "cpu"
@@ -138,7 +133,6 @@ class WhisperSpeechRecognizer(
 
         val recognizerConfig = OfflineRecognizerConfig()
         recognizerConfig.featConfig.sampleRate = SAMPLE_RATE
-        recognizerConfig.featConfig.featureDim = 80
         recognizerConfig.modelConfig = modelConfig
 
         recognizer = OfflineRecognizer(assetManager = null, config = recognizerConfig)
@@ -152,11 +146,11 @@ class WhisperSpeechRecognizer(
         }
 
         val currentVad = vad ?: run {
-            onError("WhisperSpeechRecognizer not initialized")
+            onError("SpeechRecognizer not initialized")
             return
         }
         val currentRecognizer = recognizer ?: run {
-            onError("WhisperSpeechRecognizer not initialized")
+            onError("SpeechRecognizer not initialized")
             return
         }
 
@@ -276,7 +270,7 @@ class WhisperSpeechRecognizer(
     }
 
     fun destroy() {
-        Log.d(TAG, "Destroying WhisperSpeechRecognizer")
+        Log.d(TAG, "Destroying SpeechRecognizer")
         isListening = false
         audioRecord?.stop()
         audioRecord?.release()

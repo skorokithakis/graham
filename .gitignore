@@ -37,6 +37,8 @@ local.properties
 *.iml
 
 # Model files (downloaded separately, too large for git)
+*.onnx
+app/src/main/assets/parakeet-tdt-ctc-110m/
 app/src/main/assets/whisper-base/
 app/src/main/assets/vits-piper-en_US-amy-low/
 app/libs/*.aar
