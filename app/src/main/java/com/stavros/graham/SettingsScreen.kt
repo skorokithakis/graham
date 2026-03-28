@@ -2,6 +2,7 @@ package com.stavros.graham
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +10,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,6 +18,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -29,6 +32,7 @@ fun SettingsScreen(onSave: () -> Unit) {
     var serverUrl by remember { mutableStateOf(settings.serverUrl) }
     var bodyTemplate by remember { mutableStateOf(settings.bodyTemplate) }
     var ttsSpeed by remember { mutableFloatStateOf(settings.ttsSpeed) }
+    var tonesEnabled by remember { mutableStateOf(settings.tonesEnabled) }
 
     Column(
         modifier = Modifier
@@ -72,11 +76,24 @@ fun SettingsScreen(onSave: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         )
 
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Enable tones")
+            Switch(
+                checked = tonesEnabled,
+                onCheckedChange = { tonesEnabled = it },
+            )
+        }
+
         Button(
             onClick = {
                 settings.serverUrl = serverUrl
                 settings.bodyTemplate = bodyTemplate
                 settings.ttsSpeed = ttsSpeed
+                settings.tonesEnabled = tonesEnabled
                 onSave()
             },
             enabled = serverUrl.isNotEmpty() && bodyTemplate.isNotEmpty(),

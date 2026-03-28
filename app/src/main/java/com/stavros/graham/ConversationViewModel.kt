@@ -23,6 +23,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     private var pendingStop = false
     private val settings = Settings(application)
     private var chatClient = buildChatClient()
+    private var tonesEnabled = settings.tonesEnabled
 
     private fun buildChatClient(): ChatClient =
         ChatClient(serverUrl = settings.serverUrl, bodyTemplate = settings.bodyTemplate)
@@ -31,6 +32,21 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     fun reloadSettings() {
         chatClient.shutdown()
         chatClient = buildChatClient()
+        tonesEnabled = settings.tonesEnabled
+    }
+
+    private fun playTone(toneType: Int, durationMs: Long) {
+        val toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, ToneGenerator.MAX_VOLUME)
+        toneGenerator.startTone(toneType, durationMs.toInt())
+        // ToneGenerator must be released even if the coroutine is cancelled mid-delay,
+        // otherwise the native audio resource leaks.
+        viewModelScope.launch {
+            try {
+                delay(durationMs)
+            } finally {
+                toneGenerator.release()
+            }
+        }
     }
 
     fun startListening() {
@@ -43,6 +59,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         val trimmedText = text.trim()
         _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = true)
         _state.value = ConversationState.Sending
+        if (tonesEnabled) playTone(ToneGenerator.TONE_PROP_ACK, 200)
         viewModelScope.launch {
             try {
                 val response = chatClient.sendMessage(trimmedText)
@@ -88,6 +105,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             pendingStop = false
             performHangup()
         } else {
+            if (tonesEnabled) playTone(ToneGenerator.TONE_PROP_ACK, 200)
             _state.value = ConversationState.Listening
         }
     }
@@ -99,13 +117,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             isUser = false,
             isItalic = true,
         )
-        val toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, ToneGenerator.MAX_VOLUME)
-        toneGenerator.startTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 500)
-        // ToneGenerator must be released after the tone finishes playing.
-        viewModelScope.launch {
-            delay(500)
-            toneGenerator.release()
-        }
+        if (tonesEnabled) playTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 500)
         _state.value = ConversationState.Idle
     }
 

@@ -6,10 +6,12 @@ private const val PREFS_NAME = "graham_settings"
 private const val KEY_SERVER_URL = "serverUrl"
 private const val KEY_BODY_TEMPLATE = "bodyTemplate"
 private const val KEY_TTS_SPEED = "ttsSpeed"
+private const val KEY_TONES_ENABLED = "tonesEnabled"
 
 const val DEFAULT_SERVER_URL = "http://10.0.2.2:3000/chat"
 const val DEFAULT_BODY_TEMPLATE = """{"message": "${'$'}transcript", "source": "graham", "sender": "stavros"}"""
 const val DEFAULT_TTS_SPEED = 1.3f
+const val DEFAULT_TONES_ENABLED = true
 
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -25,4 +27,8 @@ class Settings(context: Context) {
     var ttsSpeed: Float
         get() = prefs.getFloat(KEY_TTS_SPEED, DEFAULT_TTS_SPEED)
         set(value) = prefs.edit().putFloat(KEY_TTS_SPEED, value.coerceIn(0.8f, 1.8f)).apply()
+
+    var tonesEnabled: Boolean
+        get() = prefs.getBoolean(KEY_TONES_ENABLED, DEFAULT_TONES_ENABLED)
+        set(value) = prefs.edit().putBoolean(KEY_TONES_ENABLED, value).apply()
 }
