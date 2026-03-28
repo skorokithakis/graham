@@ -11,6 +11,7 @@ import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -183,6 +184,19 @@ class PiperTtsManager(private val context: Context) {
             val end = minOf(offset + chunkSize, samples.size)
             track.write(samples, offset, end - offset)
             offset = end
+        }
+
+        // Bluetooth A2DP stacks buffer audio beyond what AudioTrack has already consumed.
+        // Calling stop() immediately after the write loop discards those buffered samples.
+        // We wait until the hardware head has consumed everything we wrote before stopping,
+        // but only when playback ran to completion — if stopped or cancelled we skip the
+        // wait so the audio cuts off promptly as intended.
+        if (offset == samples.size) {
+            while (track.playbackHeadPosition < samples.size) {
+                currentCoroutineContext().ensureActive()
+                if (stopped) break
+                delay(10)
+            }
         }
 
         try {
