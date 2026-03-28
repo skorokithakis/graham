@@ -109,6 +109,10 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         _state.value = ConversationState.Idle
     }
 
+    fun clearMessages() {
+        _messages.value = emptyList()
+    }
+
     fun stopConversation() {
         _state.value = ConversationState.Idle
     }

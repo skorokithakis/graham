@@ -17,6 +17,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -124,6 +125,17 @@ class MainActivity : ComponentActivity() {
                                                 modifier = Modifier.size(24.dp),
                                             )
                                             Text("Graham")
+                                        }
+                                    },
+                                    actions = {
+                                        IconButton(
+                                            onClick = { conversationViewModel.clearMessages() },
+                                            enabled = conversationState == ConversationState.Idle,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Delete,
+                                                contentDescription = "Clear conversation",
+                                            )
                                         }
                                     },
                                 )
