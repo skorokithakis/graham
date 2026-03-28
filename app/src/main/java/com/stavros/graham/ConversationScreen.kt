@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,6 +59,7 @@ fun ConversationScreen(
     val context = LocalContext.current
 
     var rmsLevel by remember { mutableFloatStateOf(0f) }
+    var speechReady by remember { mutableStateOf(false) }
 
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val audioFocusRequest = remember {
@@ -104,6 +106,7 @@ fun ConversationScreen(
     LaunchedEffect(Unit) {
         try {
             speechManager.initialize()
+            speechReady = true
         } catch (exception: Exception) {
             if (exception is CancellationException) throw exception
             Log.e(TAG, "Speech recognizer initialization failed", exception)
@@ -117,7 +120,11 @@ fun ConversationScreen(
     }
 
     // React to state transitions: start/stop the recognizer and drive TTS.
-    LaunchedEffect(state) {
+    // speechReady is included as a key so this re-runs once initialization completes,
+    // and the early return prevents startListening() from being called before the
+    // recognizer is ready.
+    LaunchedEffect(state, speechReady) {
+        if (!speechReady) return@LaunchedEffect
         when (state) {
             ConversationState.Listening -> {
                 audioManager.requestAudioFocus(audioFocusRequest)

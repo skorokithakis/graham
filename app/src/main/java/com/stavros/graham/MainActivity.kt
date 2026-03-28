@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
 
                     // Keep the screen on only while the app is actively doing something, so the
                     // normal screen timeout applies when the user isn't interacting.
-                    SideEffect {
+                    LaunchedEffect(conversationState) {
                         if (conversationState == ConversationState.Idle) {
                             activityWindow.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         } else {
