@@ -6,7 +6,7 @@ your words on-device with Parakeet, sends the transcript to your server, and
 answers out loud with Piper TTS. The heavy lifting stays on the phone; only the
 final chat request leaves the device.
 
-![Graham conversation screenshot](misc/screenshot.png)
+<img src="misc/screenshot.png" alt="Graham conversation screenshot" width="300">
 
 ## Why Graham
 
