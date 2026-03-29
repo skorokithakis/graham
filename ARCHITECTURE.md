@@ -3,7 +3,7 @@
 ## Detected stack
 
 - **Language:** Kotlin 2.0.21 (100% of source; `gradle/libs.versions.toml`)
-- **Platform:** Android — minSdk 34, targetSdk 35, compileSdk 35 (`app/build.gradle.kts`)
+- **Platform:** Android — minSdk 24, targetSdk 35, compileSdk 35 (`app/build.gradle.kts`)
 - **UI framework:** Jetpack Compose + Material 3 (`compose-bom = "2024.12.01"`, `app/build.gradle.kts`)
 - **Build system:** Gradle 8 with Kotlin DSL (`build.gradle.kts`, `settings.gradle.kts`); version catalog at `gradle/libs.versions.toml`
 - **AGP version:** 8.7.3
@@ -23,8 +23,11 @@
 
 ### Speech / audio
 
-- **STT:** On-device Parakeet TDT-CTC 110M via sherpa-onnx `OfflineRecognizer` (`OfflineNemoEncDecCtcModelConfig`), with Silero VAD for end-of-speech detection. Audio is captured at 16 kHz mono 16-bit via `AudioRecord`. Model files live in `app/src/main/assets/parakeet-tdt-ctc-110m/`. (`SpeechRecognizer.kt`)
-- **TTS:** sherpa-onnx v1.12.32 (local `.aar`) running the **Piper VITS** model `en_US-amy-low.onnx` entirely on-device. Model files live in `app/src/main/assets/vits-piper-en_US-amy-low/`. (`PiperTtsManager.kt`)
+- **STT:** On-device Parakeet TDT-CTC 110M via sherpa-onnx `OfflineRecognizer` (`OfflineNemoEncDecCtcModelConfig`), with Silero VAD for end-of-speech detection. Audio is captured at 16 kHz mono 16-bit via `AudioRecord`. Silero VAD processes 512-sample windows (`VAD_WINDOW_SIZE = 512`). Model files live in `app/src/main/assets/parakeet-tdt-ctc-110m/`. (`SpeechRecognizer.kt`)
+- **TTS:** sherpa-onnx v1.12.32 (local `.aar`) running the **Piper VITS** model `en_US-amy-low.onnx` entirely on-device. Synthesis produces a `FloatArray` which is converted to PCM 16-bit `ShortArray` and streamed via `AudioTrack` (`USAGE_MEDIA` / `CONTENT_TYPE_SPEECH`). A Bluetooth A2DP tail-wait polls `playbackHeadPosition` before calling `stop()` to avoid cutting off buffered audio on wireless headsets. Speed is user-configurable (0.8×–1.8×, default 1.3×). Model files live in `app/src/main/assets/vits-piper-en_US-amy-low/`. (`PiperTtsManager.kt`)
+- **Tones:** Android `ToneGenerator` on `STREAM_VOICE_CALL` at max volume. `TONE_PROP_ACK` (200 ms) plays when speech is received and when speaking finishes; `TONE_CDMA_CALLDROP_LITE` (500 ms) plays on `/stop` hangup. User-toggleable via `Settings.tonesEnabled`. (`ConversationViewModel.kt`)
+- **Audio focus:** `AUDIOFOCUS_GAIN_TRANSIENT` with `USAGE_VOICE_COMMUNICATION` is requested when listening starts and abandoned on idle, pausing other media. (`ConversationScreen.kt`)
+- **Markdown stripping:** Bot responses are rendered with Markdown in the UI but stripped of syntax before TTS via `stripMarkdown()` so formatting characters are not read aloud. (`MarkdownUtils.kt`)
 
 ### Deployment / runtime
 
@@ -77,7 +80,7 @@ The `ConversationViewModel` owns the state machine and the message list (`List<C
 
 ## Conventions
 
-- **Formatting/linting:** No linter or formatter config found (no `.editorconfig`, no `detekt`, no `ktlint`). `gradle.properties` sets `kotlin.code.style=official`.
+- **Formatting/linting:** No linter or formatter config found (no `.editorconfig`, no `detekt`, no `ktlint`). `gradle.properties` sets `kotlin.code.style=official`. No pre-commit hooks.
 - **Type checking:** Kotlin's own compiler; no additional static analysis tool configured.
 - **Testing:** No test sources or test dependencies found (no `test/` or `androidTest/` directories, no JUnit/Espresso in the version catalog).
 - **Documentation:** `README.md` at repo root; `ARCHITECTURE.md` (this file); no changelog.
@@ -108,13 +111,13 @@ app/src/main/java/com/stavros/graham/
   ConversationViewModel.kt        — owns the state machine (Idle→Listening→Sending→Speaking) and message list
   ConversationScreen.kt           — main UI; drives SpeechRecognizer and PiperTtsManager via LaunchedEffect(state)
   ConversationState.kt            — enum: Idle, Listening, Sending, Speaking
-  ChatMessage.kt                  — data class: id, text, isUser
+  ChatMessage.kt                  — data class: id, text, isUser, isItalic
   ChatClient.kt                   — OkHttp POST to configurable server; basic-auth parsing; JSON body templating
-  Settings.kt                     — SharedPreferences wrapper: serverUrl, bodyTemplate, ttsSpeed
+  Settings.kt                     — SharedPreferences wrapper: serverUrl, bodyTemplate, ttsSpeed, tonesEnabled
   SpeechRecognizer.kt             — sherpa-onnx Parakeet TDT-CTC 110M + Silero VAD; AudioRecord loop; asset-to-disk copy
   PiperTtsManager.kt              — sherpa-onnx Piper VITS; AudioTrack streaming playback; asset-to-disk copy
   ConversationService.kt          — foreground service (FOREGROUND_SERVICE_TYPE_MICROPHONE) to keep mic alive in background
-  SettingsScreen.kt               — settings UI: server URL, body template, TTS speed slider
+  SettingsScreen.kt               — settings UI: server URL, body template, TTS speed slider, tones toggle
   InfoScreens.kt                  — AboutScreen and ModelStatusScreen (filesystem checks for model files)
   WaveformIndicator.kt            — animated bar waveform driven by RMS level during Listening state
 app/src/main/assets/vits-piper-en_US-amy-low/
