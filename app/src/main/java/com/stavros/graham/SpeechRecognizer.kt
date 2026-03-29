@@ -168,8 +168,16 @@ class SpeechRecognizer(
         // Use at least 8 VAD windows worth of buffer to avoid overruns.
         val bufferSize = maxOf(minBufferSize, VAD_WINDOW_SIZE * 8 * 2)
 
+        // VOICE_COMMUNICATION enables AGC/AEC/NS which helps BT mic quality but degrades
+        // STT accuracy on the built-in mic. Use it only when routing to a BT device.
+        val audioSource = if (preferredInputDevice != null) {
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION
+        } else {
+            MediaRecorder.AudioSource.MIC
+        }
+
         val record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            audioSource,
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
