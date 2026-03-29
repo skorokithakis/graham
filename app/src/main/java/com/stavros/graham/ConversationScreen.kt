@@ -48,6 +48,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
@@ -55,6 +59,33 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CancellationException
 
 private const val TAG = "ConversationScreen"
+
+// The Pause icon is not in material-icons-core, only in the ~4 MB extended artifact.
+// Two filled rectangles on a 24×24 viewport match the standard Material pause glyph exactly.
+private val PauseIcon: ImageVector = ImageVector.Builder(
+    name = "Pause",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f,
+).apply {
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(6f, 19f)
+        horizontalLineToRelative(4f)
+        verticalLineTo(5f)
+        horizontalLineTo(6f)
+        verticalLineToRelative(14f)
+        close()
+    }
+    path(fill = SolidColor(Color.Black)) {
+        moveTo(14f, 19f)
+        horizontalLineToRelative(4f)
+        verticalLineTo(5f)
+        horizontalLineTo(14f)
+        verticalLineToRelative(14f)
+        close()
+    }
+}.build()
 
 @Composable
 fun ConversationScreen(
@@ -67,6 +98,8 @@ fun ConversationScreen(
     var rmsLevel by remember { mutableFloatStateOf(0f) }
     var speechReady by remember { mutableStateOf(false) }
     var replayPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var playingMessageId by remember { mutableStateOf<Int?>(null) }
+    var isPlaybackPaused by remember { mutableStateOf(false) }
 
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val audioFocusRequest = remember {
@@ -201,6 +234,10 @@ fun ConversationScreen(
                     conversationState = state,
                     replayPlayer = replayPlayer,
                     onReplayPlayerChanged = { replayPlayer = it },
+                    playingMessageId = playingMessageId,
+                    onPlayingMessageIdChanged = { playingMessageId = it },
+                    isPlaybackPaused = isPlaybackPaused,
+                    onIsPlaybackPausedChanged = { isPlaybackPaused = it },
                 )
             }
         }
@@ -246,6 +283,10 @@ private fun MessageBubble(
     conversationState: ConversationState,
     replayPlayer: MediaPlayer?,
     onReplayPlayerChanged: (MediaPlayer?) -> Unit,
+    playingMessageId: Int?,
+    onPlayingMessageIdChanged: (Int?) -> Unit,
+    isPlaybackPaused: Boolean,
+    onIsPlaybackPausedChanged: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -254,10 +295,15 @@ private fun MessageBubble(
     ) {
         if (message.isUser && message.audioFilePath != null) {
             PlayButton(
+                messageId = message.id,
                 audioFilePath = message.audioFilePath,
                 conversationState = conversationState,
                 replayPlayer = replayPlayer,
                 onReplayPlayerChanged = onReplayPlayerChanged,
+                playingMessageId = playingMessageId,
+                onPlayingMessageIdChanged = onPlayingMessageIdChanged,
+                isPlaybackPaused = isPlaybackPaused,
+                onIsPlaybackPausedChanged = onIsPlaybackPausedChanged,
             )
         }
         Box(
@@ -292,10 +338,15 @@ private fun MessageBubble(
         }
         if (!message.isUser && message.audioFilePath != null) {
             PlayButton(
+                messageId = message.id,
                 audioFilePath = message.audioFilePath,
                 conversationState = conversationState,
                 replayPlayer = replayPlayer,
                 onReplayPlayerChanged = onReplayPlayerChanged,
+                playingMessageId = playingMessageId,
+                onPlayingMessageIdChanged = onPlayingMessageIdChanged,
+                isPlaybackPaused = isPlaybackPaused,
+                onIsPlaybackPausedChanged = onIsPlaybackPausedChanged,
             )
         }
     }
@@ -303,40 +354,66 @@ private fun MessageBubble(
 
 @Composable
 private fun PlayButton(
+    messageId: Int,
     audioFilePath: String,
     conversationState: ConversationState,
     replayPlayer: MediaPlayer?,
     onReplayPlayerChanged: (MediaPlayer?) -> Unit,
+    playingMessageId: Int?,
+    onPlayingMessageIdChanged: (Int?) -> Unit,
+    isPlaybackPaused: Boolean,
+    onIsPlaybackPausedChanged: (Boolean) -> Unit,
 ) {
+    val isThisMessagePlaying = playingMessageId == messageId
+    val showPause = isThisMessagePlaying && !isPlaybackPaused
+
     IconButton(
         enabled = conversationState == ConversationState.Idle,
         onClick = {
-            replayPlayer?.stop()
-            replayPlayer?.release()
-            onReplayPlayerChanged(null)
-
-            val player = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build(),
-                )
-                setDataSource(audioFilePath)
-                prepare()
-                setOnCompletionListener {
-                    it.release()
-                    onReplayPlayerChanged(null)
+            when {
+                isThisMessagePlaying && !isPlaybackPaused -> {
+                    replayPlayer?.pause()
+                    onIsPlaybackPausedChanged(true)
                 }
-                start()
+                isThisMessagePlaying && isPlaybackPaused -> {
+                    replayPlayer?.start()
+                    onIsPlaybackPausedChanged(false)
+                }
+                else -> {
+                    // A different message (or no message) was playing; stop it and start fresh.
+                    replayPlayer?.stop()
+                    replayPlayer?.release()
+                    onReplayPlayerChanged(null)
+                    onPlayingMessageIdChanged(null)
+                    onIsPlaybackPausedChanged(false)
+
+                    val player = MediaPlayer().apply {
+                        setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build(),
+                        )
+                        setDataSource(audioFilePath)
+                        prepare()
+                        setOnCompletionListener {
+                            it.release()
+                            onReplayPlayerChanged(null)
+                            onPlayingMessageIdChanged(null)
+                            onIsPlaybackPausedChanged(false)
+                        }
+                        start()
+                    }
+                    onReplayPlayerChanged(player)
+                    onPlayingMessageIdChanged(messageId)
+                }
             }
-            onReplayPlayerChanged(player)
         },
         modifier = Modifier.size(36.dp),
     ) {
         Icon(
-            imageVector = Icons.Default.PlayArrow,
-            contentDescription = "Replay audio",
+            imageVector = if (showPause) PauseIcon else Icons.Filled.PlayArrow,
+            contentDescription = if (showPause) "Pause audio" else "Replay audio",
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
