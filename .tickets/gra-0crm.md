@@ -1,6 +1,6 @@
 ---
 id: gra-0crm
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T14:24:15Z

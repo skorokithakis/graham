@@ -1,12 +1,9 @@
 package com.stavros.graham
 
 import android.app.Application
-import android.media.AudioManager
-import android.media.ToneGenerator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,20 +32,6 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         tonesEnabled = settings.tonesEnabled
     }
 
-    private fun playTone(toneType: Int, durationMs: Long) {
-        val toneGenerator = ToneGenerator(AudioManager.STREAM_VOICE_CALL, ToneGenerator.MAX_VOLUME)
-        toneGenerator.startTone(toneType, durationMs.toInt())
-        // ToneGenerator must be released even if the coroutine is cancelled mid-delay,
-        // otherwise the native audio resource leaks.
-        viewModelScope.launch {
-            try {
-                delay(durationMs)
-            } finally {
-                toneGenerator.release()
-            }
-        }
-    }
-
     fun startListening() {
         if (_state.value != ConversationState.Idle) return
         _state.value = ConversationState.Listening
@@ -59,7 +42,9 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         val trimmedText = text.trim()
         _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = true)
         _state.value = ConversationState.Sending
-        if (tonesEnabled) playTone(ToneGenerator.TONE_PROP_ACK, 200)
+        viewModelScope.launch {
+            if (tonesEnabled) TonePlayer.playAckTone()
+        }
         viewModelScope.launch {
             try {
                 val response = chatClient.sendMessage(trimmedText)
@@ -105,7 +90,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             pendingStop = false
             performHangup()
         } else {
-            if (tonesEnabled) playTone(ToneGenerator.TONE_PROP_ACK, 200)
+            if (tonesEnabled) viewModelScope.launch { TonePlayer.playAckTone() }
             _state.value = ConversationState.Listening
         }
     }
@@ -117,7 +102,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             isUser = false,
             isItalic = true,
         )
-        if (tonesEnabled) playTone(ToneGenerator.TONE_CDMA_CALLDROP_LITE, 500)
+        if (tonesEnabled) viewModelScope.launch { TonePlayer.playHangupTone() }
         _state.value = ConversationState.Idle
     }
 
