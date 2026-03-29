@@ -1,6 +1,7 @@
 package com.stavros.graham
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -41,6 +42,8 @@ class SpeechRecognizer(
     private val onError: (String) -> Unit,
     private val onRmsChanged: (Float) -> Unit,
 ) {
+    var preferredInputDevice: AudioDeviceInfo? = null
+
     private var vad: Vad? = null
     private var recognizer: OfflineRecognizer? = null
     private var audioRecord: AudioRecord? = null
@@ -166,7 +169,7 @@ class SpeechRecognizer(
         val bufferSize = maxOf(minBufferSize, VAD_WINDOW_SIZE * 8 * 2)
 
         val record = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
@@ -179,10 +182,15 @@ class SpeechRecognizer(
             return
         }
 
+        preferredInputDevice?.let { device ->
+            val accepted = record.setPreferredDevice(device)
+            Log.d(TAG, "setPreferredDevice(${device.productName}, type=${device.type}, id=${device.id}) -> $accepted")
+        }
+
         audioRecord = record
         isListening = true
         record.startRecording()
-        Log.d(TAG, "AudioRecord started")
+        Log.d(TAG, "AudioRecord started; routedDevice=${record.routedDevice?.let { "${it.productName} type=${it.type}" } ?: "null"}")
 
         recordingJob = scope.launch {
             runRecordingLoop(record, currentVad, currentRecognizer)
@@ -252,7 +260,7 @@ class SpeechRecognizer(
         }
     }
 
-    private fun writeSttLog(samples: FloatArray): String {
+    private suspend fun writeSttLog(samples: FloatArray): String = withContext(Dispatchers.IO) {
         val shorts = ShortArray(samples.size) { index ->
             (samples[index].coerceIn(-1.0f, 1.0f) * Short.MAX_VALUE).toInt().toShort()
         }
@@ -260,7 +268,7 @@ class SpeechRecognizer(
         val file = File(context.cacheDir, "audio_logs/stt/stt_$timestamp.wav")
         WavWriter.write(file, shorts, SAMPLE_RATE)
         Log.d(TAG, "STT audio written to ${file.absolutePath}")
-        return file.absolutePath
+        file.absolutePath
     }
 
     private fun computeRms(samples: FloatArray): Float {

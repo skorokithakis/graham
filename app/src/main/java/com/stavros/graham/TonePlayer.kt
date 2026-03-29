@@ -70,7 +70,7 @@ object TonePlayer {
     // Short confirmation beep played when speech is received or TTS finishes.
     suspend fun playAckTone() {
         val samples = generateSine(frequencyHz = 880.0, durationMs = 200)
-        withContext(Dispatchers.Default) {
+        withContext(Dispatchers.IO) {
             playAndRelease(samples)
         }
     }
@@ -78,7 +78,7 @@ object TonePlayer {
     // Descending tone played on /stop to signal end of conversation, distinct from the ack beep.
     suspend fun playHangupTone() {
         val samples = generateSweep(startFrequencyHz = 880.0, endFrequencyHz = 440.0, durationMs = 500)
-        withContext(Dispatchers.Default) {
+        withContext(Dispatchers.IO) {
             playAndRelease(samples)
         }
     }

@@ -2,6 +2,7 @@ package com.stavros.graham
 
 import android.Manifest
 import android.media.MediaPlayer
+import android.os.Build
 import com.stavros.graham.stripMarkdown
 import android.content.Intent
 import android.media.AudioAttributes
@@ -113,6 +114,8 @@ fun ConversationScreen(
             .build()
     }
 
+    val scoManager = remember { BluetoothScoManager(context) }
+
     val speechManager = remember {
         SpeechRecognizer(
             context = context,
@@ -133,7 +136,12 @@ fun ConversationScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            replayPlayer?.stop()
+            replayPlayer?.release()
+            replayPlayer = null
             speechManager.stopListening()
+            scoManager.stop(audioManager)
+            scoManager.destroy()
             ttsManager.stop()
             audioManager.abandonAudioFocusRequest(audioFocusRequest)
             context.stopService(Intent(context, ConversationService::class.java))
@@ -167,12 +175,25 @@ fun ConversationScreen(
         if (!speechReady) return@LaunchedEffect
         when (state) {
             ConversationState.Listening -> {
+                replayPlayer?.stop()
+                replayPlayer?.release()
+                replayPlayer = null
+                playingMessageId = null
+                isPlaybackPaused = false
                 audioManager.requestAudioFocus(audioFocusRequest)
                 context.startForegroundService(Intent(context, ConversationService::class.java))
+                scoManager.start(audioManager)
+                speechManager.preferredInputDevice = scoManager.preferredInputDevice
                 speechManager.startListening()
             }
             ConversationState.Speaking -> {
+                replayPlayer?.stop()
+                replayPlayer?.release()
+                replayPlayer = null
+                playingMessageId = null
+                isPlaybackPaused = false
                 speechManager.stopListening()
+                scoManager.stop(audioManager)
                 val text = messages.lastOrNull { !it.isUser }?.text
                 if (text != null) {
                     try {
@@ -191,9 +212,18 @@ fun ConversationScreen(
                     conversationViewModel.onSpeakingDone()
                 }
             }
-            ConversationState.Sending -> speechManager.stopListening()
+            ConversationState.Sending -> {
+                replayPlayer?.stop()
+                replayPlayer?.release()
+                replayPlayer = null
+                playingMessageId = null
+                isPlaybackPaused = false
+                speechManager.stopListening()
+                scoManager.stop(audioManager)
+            }
             ConversationState.Idle -> {
                 speechManager.stopListening()
+                scoManager.stop(audioManager)
                 ttsManager.stop()
                 audioManager.abandonAudioFocusRequest(audioFocusRequest)
                 context.stopService(Intent(context, ConversationService::class.java))
@@ -202,9 +232,11 @@ fun ConversationScreen(
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        // BLUETOOTH_CONNECT is optional — SCO falls back to the built-in mic if denied.
+        // The conversation only requires RECORD_AUDIO.
+        if (results[Manifest.permission.RECORD_AUDIO] == true) {
             conversationViewModel.startListening()
         } else {
             Log.w(TAG, "RECORD_AUDIO permission denied; not starting conversation")
@@ -255,7 +287,14 @@ fun ConversationScreen(
             if (state == ConversationState.Idle) {
                 Button(
                     onClick = {
-                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        val permissions = buildList {
+                            add(Manifest.permission.RECORD_AUDIO)
+                            // BLUETOOTH_CONNECT is a runtime permission only on API 31+.
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                add(Manifest.permission.BLUETOOTH_CONNECT)
+                            }
+                        }.toTypedArray()
+                        permissionLauncher.launch(permissions)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -387,25 +426,27 @@ private fun PlayButton(
                     onPlayingMessageIdChanged(null)
                     onIsPlaybackPausedChanged(false)
 
-                    val player = MediaPlayer().apply {
-                        setAudioAttributes(
-                            AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_MEDIA)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                                .build(),
-                        )
-                        setDataSource(audioFilePath)
-                        prepare()
-                        setOnCompletionListener {
-                            it.release()
-                            onReplayPlayerChanged(null)
-                            onPlayingMessageIdChanged(null)
-                            onIsPlaybackPausedChanged(false)
+                    if (java.io.File(audioFilePath).exists()) {
+                        val player = MediaPlayer().apply {
+                            setAudioAttributes(
+                                AudioAttributes.Builder()
+                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                    .build(),
+                            )
+                            setDataSource(audioFilePath)
+                            prepare()
+                            setOnCompletionListener {
+                                it.release()
+                                onReplayPlayerChanged(null)
+                                onPlayingMessageIdChanged(null)
+                                onIsPlaybackPausedChanged(false)
+                            }
+                            start()
                         }
-                        start()
+                        onReplayPlayerChanged(player)
+                        onPlayingMessageIdChanged(messageId)
                     }
-                    onReplayPlayerChanged(player)
-                    onPlayingMessageIdChanged(messageId)
                 }
             }
         },

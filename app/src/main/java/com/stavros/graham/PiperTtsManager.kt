@@ -2,6 +2,7 @@ package com.stavros.graham
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.util.Log
@@ -208,6 +209,22 @@ class PiperTtsManager(private val context: Context) {
                 currentCoroutineContext().ensureActive()
                 if (stopped) break
                 delay(10)
+            }
+            // Bluetooth stacks (A2DP/BLE) buffer audio beyond what AudioTrack has consumed.
+            // Calling stop() before those layers drain cuts off the last ~1s. We delay here,
+            // before stop(), only when the track is actually routed to a BT device — wired
+            // and speaker output drain fast enough that no extra wait is needed.
+            if (!stopped) {
+                val bluetoothOutputTypes = setOf(
+                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                    AudioDeviceInfo.TYPE_BLE_HEADSET,
+                    AudioDeviceInfo.TYPE_BLE_SPEAKER,
+                )
+                val routedDevice = track.routedDevice
+                if (routedDevice != null && routedDevice.type in bluetoothOutputTypes) {
+                    delay(1000)
+                }
             }
         }
 
