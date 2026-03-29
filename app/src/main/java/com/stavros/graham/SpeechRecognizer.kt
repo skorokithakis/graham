@@ -16,11 +16,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 private const val TAG = "SpeechRecognizer"
 private const val ASSET_DIR = "parakeet-tdt-ctc-110m"
@@ -222,6 +225,8 @@ class SpeechRecognizer(
 
                 wasSpeechDetected = isSpeechNow
             }
+        } catch (exception: CancellationException) {
+            throw exception
         } catch (exception: Exception) {
             Log.e(TAG, "Recording loop error", exception)
             withContext(Dispatchers.Main) { onError(exception.message ?: "Unknown recording error") }
@@ -232,6 +237,7 @@ class SpeechRecognizer(
 
     private suspend fun transcribeSegment(samples: FloatArray, currentRecognizer: OfflineRecognizer) {
         Log.d(TAG, "Transcribing segment of ${samples.size} samples")
+        writeSttLog(samples)
         val stream = currentRecognizer.createStream()
         try {
             stream.acceptWaveform(samples, SAMPLE_RATE)
@@ -244,6 +250,16 @@ class SpeechRecognizer(
         } finally {
             stream.release()
         }
+    }
+
+    private fun writeSttLog(samples: FloatArray) {
+        val shorts = ShortArray(samples.size) { index ->
+            (samples[index].coerceIn(-1.0f, 1.0f) * Short.MAX_VALUE).toInt().toShort()
+        }
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS"))
+        val file = File(context.cacheDir, "audio_logs/stt/stt_$timestamp.wav")
+        WavWriter.write(file, shorts, SAMPLE_RATE)
+        Log.d(TAG, "STT audio written to ${file.absolutePath}")
     }
 
     private fun computeRms(samples: FloatArray): Float {

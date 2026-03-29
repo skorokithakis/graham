@@ -16,6 +16,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.InputStream
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 private const val TAG = "PiperTtsManager"
 private const val ASSET_DIR = "vits-piper-en_US-amy-low"
@@ -123,6 +125,7 @@ class PiperTtsManager(private val context: Context) {
         Log.d(TAG, "Synthesis done: ${audio.samples.size} samples at ${audio.sampleRate} Hz")
 
         val shorts = floatArrayToShortArray(audio.samples)
+        withContext(Dispatchers.IO) { writeTtsLog(shorts, audio.sampleRate) }
         playAudio(shorts, audio.sampleRate)
     }
 
@@ -136,6 +139,13 @@ class PiperTtsManager(private val context: Context) {
         audioTrack = null
         tts?.release()
         tts = null
+    }
+
+    private fun writeTtsLog(samples: ShortArray, sampleRate: Int) {
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS"))
+        val file = File(context.cacheDir, "audio_logs/tts/tts_$timestamp.wav")
+        WavWriter.write(file, samples, sampleRate)
+        Log.d(TAG, "TTS audio written to ${file.absolutePath}")
     }
 
     private fun floatArrayToShortArray(floats: FloatArray): ShortArray {

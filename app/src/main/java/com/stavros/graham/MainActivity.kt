@@ -2,6 +2,7 @@ package com.stavros.graham
 
 import android.os.Bundle
 import android.view.WindowManager
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        File(cacheDir, "audio_logs").deleteRecursively()
         enableEdgeToEdge()
         val activityWindow = window
         setContent {
