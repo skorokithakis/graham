@@ -14,6 +14,12 @@ import androidx.core.content.ContextCompat
 
 private const val TAG = "BluetoothScoManager"
 
+private val BLUETOOTH_COMM_TYPES = setOf(
+    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+    AudioDeviceInfo.TYPE_BLE_HEADSET,
+    AudioDeviceInfo.TYPE_BLE_SPEAKER,
+)
+
 class BluetoothScoManager(private val context: Context) {
     private var isActive = false
 
@@ -62,6 +68,11 @@ class BluetoothScoManager(private val context: Context) {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (cachedDevice == null) {
+                // Quick pre-check before the full enumeration: if no BT communication device
+                // is available at all, skip the logging-heavy findBluetoothDevice() call.
+                val hasBluetoothComm = audioManager.availableCommunicationDevices
+                    .any { it.type in BLUETOOTH_COMM_TYPES }
+                if (!hasBluetoothComm) return
                 cachedDevice = findBluetoothDevice(audioManager)
             }
             val device = cachedDevice ?: run {
@@ -128,12 +139,7 @@ class BluetoothScoManager(private val context: Context) {
             Log.d(TAG, "  id=${device.id}, type=${device.type}, name=${device.productName}, isSink=${device.isSink}")
         }
 
-        val bluetoothCommTypes = setOf(
-            AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-            AudioDeviceInfo.TYPE_BLE_HEADSET,
-            AudioDeviceInfo.TYPE_BLE_SPEAKER,
-        )
-        val chosen = commDevices.firstOrNull { it.type in bluetoothCommTypes } ?: return null
+        val chosen = commDevices.firstOrNull { it.type in BLUETOOTH_COMM_TYPES } ?: return null
 
         preferredInputDevice = inputDevices.firstOrNull { it.id == chosen.id }
             ?: inputDevices.firstOrNull {
