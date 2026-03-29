@@ -112,11 +112,11 @@ class PiperTtsManager(private val context: Context) {
         Log.d(TAG, "PiperTtsManager initialized, sampleRate=${tts!!.sampleRate()}")
     }
 
-    suspend fun speak(text: String): Unit = withContext(Dispatchers.Default) {
+    suspend fun speak(text: String): String? = withContext(Dispatchers.Default) {
         stopped = false
         val engine = tts ?: run {
             Log.w(TAG, "speak() called before initialize()")
-            return@withContext
+            return@withContext null
         }
 
         val speed = settings.ttsSpeed
@@ -125,8 +125,9 @@ class PiperTtsManager(private val context: Context) {
         Log.d(TAG, "Synthesis done: ${audio.samples.size} samples at ${audio.sampleRate} Hz")
 
         val shorts = floatArrayToShortArray(audio.samples)
-        withContext(Dispatchers.IO) { writeTtsLog(shorts, audio.sampleRate) }
+        val audioFilePath = withContext(Dispatchers.IO) { writeTtsLog(shorts, audio.sampleRate) }
         playAudio(shorts, audio.sampleRate)
+        audioFilePath
     }
 
     fun stop() {
@@ -141,11 +142,12 @@ class PiperTtsManager(private val context: Context) {
         tts = null
     }
 
-    private fun writeTtsLog(samples: ShortArray, sampleRate: Int) {
+    private fun writeTtsLog(samples: ShortArray, sampleRate: Int): String {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmssSSS"))
         val file = File(context.cacheDir, "audio_logs/tts/tts_$timestamp.wav")
         WavWriter.write(file, samples, sampleRate)
         Log.d(TAG, "TTS audio written to ${file.absolutePath}")
+        return file.absolutePath
     }
 
     private fun floatArrayToShortArray(floats: FloatArray): ShortArray {

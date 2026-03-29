@@ -37,7 +37,7 @@ private const val VAD_WINDOW_SIZE = 512
 
 class SpeechRecognizer(
     private val context: Context,
-    private val onResult: (String) -> Unit,
+    private val onResult: (String, String?) -> Unit,
     private val onError: (String) -> Unit,
     private val onRmsChanged: (Float) -> Unit,
 ) {
@@ -237,7 +237,7 @@ class SpeechRecognizer(
 
     private suspend fun transcribeSegment(samples: FloatArray, currentRecognizer: OfflineRecognizer) {
         Log.d(TAG, "Transcribing segment of ${samples.size} samples")
-        writeSttLog(samples)
+        val audioFilePath = writeSttLog(samples)
         val stream = currentRecognizer.createStream()
         try {
             stream.acceptWaveform(samples, SAMPLE_RATE)
@@ -245,14 +245,14 @@ class SpeechRecognizer(
             val text = currentRecognizer.getResult(stream).text.trim()
             Log.d(TAG, "Transcription result: '$text'")
             if (text.isNotBlank()) {
-                withContext(Dispatchers.Main) { onResult(text) }
+                withContext(Dispatchers.Main) { onResult(text, audioFilePath) }
             }
         } finally {
             stream.release()
         }
     }
 
-    private fun writeSttLog(samples: FloatArray) {
+    private fun writeSttLog(samples: FloatArray): String {
         val shorts = ShortArray(samples.size) { index ->
             (samples[index].coerceIn(-1.0f, 1.0f) * Short.MAX_VALUE).toInt().toShort()
         }
@@ -260,6 +260,7 @@ class SpeechRecognizer(
         val file = File(context.cacheDir, "audio_logs/stt/stt_$timestamp.wav")
         WavWriter.write(file, shorts, SAMPLE_RATE)
         Log.d(TAG, "STT audio written to ${file.absolutePath}")
+        return file.absolutePath
     }
 
     private fun computeRms(samples: FloatArray): Float {

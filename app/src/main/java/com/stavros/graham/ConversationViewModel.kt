@@ -37,10 +37,15 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         _state.value = ConversationState.Listening
     }
 
-    fun onSpeechResult(text: String) {
+    fun onSpeechResult(text: String, audioFilePath: String?) {
         if (_state.value != ConversationState.Listening) return
         val trimmedText = text.trim()
-        _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = true)
+        _messages.value = _messages.value + ChatMessage(
+            id = nextMessageId++,
+            text = trimmedText,
+            isUser = true,
+            audioFilePath = audioFilePath,
+        )
         _state.value = ConversationState.Sending
         viewModelScope.launch {
             if (tonesEnabled) TonePlayer.playAckTone()
@@ -82,6 +87,15 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         }
         _messages.value = _messages.value + ChatMessage(id = nextMessageId++, text = trimmedText, isUser = false)
         _state.value = ConversationState.Speaking
+    }
+
+    fun attachTtsAudioPath(audioFilePath: String) {
+        val current = _messages.value
+        val lastBotIndex = current.indexOfLast { !it.isUser }
+        if (lastBotIndex == -1) return
+        _messages.value = current.toMutableList().also { list ->
+            list[lastBotIndex] = list[lastBotIndex].copy(audioFilePath = audioFilePath)
+        }
     }
 
     fun onSpeakingDone() {

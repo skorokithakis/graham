@@ -1,6 +1,7 @@
 package com.stavros.graham
 
 import android.Manifest
+import android.media.MediaPlayer
 import com.stavros.graham.stripMarkdown
 import android.content.Intent
 import android.media.AudioAttributes
@@ -19,13 +20,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -60,6 +66,7 @@ fun ConversationScreen(
 
     var rmsLevel by remember { mutableFloatStateOf(0f) }
     var speechReady by remember { mutableStateOf(false) }
+    var replayPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
 
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val audioFocusRequest = remember {
@@ -76,9 +83,9 @@ fun ConversationScreen(
     val speechManager = remember {
         SpeechRecognizer(
             context = context,
-            onResult = { text ->
+            onResult = { text, audioFilePath ->
                 rmsLevel = 0f
-                conversationViewModel.onSpeechResult(text)
+                conversationViewModel.onSpeechResult(text, audioFilePath)
             },
             onError = { error ->
                 Log.w(TAG, "Speech error: $error")
@@ -136,7 +143,10 @@ fun ConversationScreen(
                 val text = messages.lastOrNull { !it.isUser }?.text
                 if (text != null) {
                     try {
-                        ttsManager.speak(stripMarkdown(text))
+                        val audioFilePath = ttsManager.speak(stripMarkdown(text))
+                        if (audioFilePath != null) {
+                            conversationViewModel.attachTtsAudioPath(audioFilePath)
+                        }
                         conversationViewModel.onSpeakingDone()
                     } catch (exception: Exception) {
                         if (exception is CancellationException) throw exception
@@ -186,7 +196,12 @@ fun ConversationScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(messages, key = { it.id }) { message ->
-                MessageBubble(message = message)
+                MessageBubble(
+                    message = message,
+                    conversationState = state,
+                    replayPlayer = replayPlayer,
+                    onReplayPlayerChanged = { replayPlayer = it },
+                )
             }
         }
 
@@ -226,11 +241,25 @@ fun ConversationScreen(
 }
 
 @Composable
-private fun MessageBubble(message: ChatMessage) {
+private fun MessageBubble(
+    message: ChatMessage,
+    conversationState: ConversationState,
+    replayPlayer: MediaPlayer?,
+    onReplayPlayerChanged: (MediaPlayer?) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom,
     ) {
+        if (message.isUser && message.audioFilePath != null) {
+            PlayButton(
+                audioFilePath = message.audioFilePath,
+                conversationState = conversationState,
+                replayPlayer = replayPlayer,
+                onReplayPlayerChanged = onReplayPlayerChanged,
+            )
+        }
         Box(
             modifier = Modifier
                 .widthIn(max = 300.dp)
@@ -261,6 +290,55 @@ private fun MessageBubble(message: ChatMessage) {
                 )
             }
         }
+        if (!message.isUser && message.audioFilePath != null) {
+            PlayButton(
+                audioFilePath = message.audioFilePath,
+                conversationState = conversationState,
+                replayPlayer = replayPlayer,
+                onReplayPlayerChanged = onReplayPlayerChanged,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayButton(
+    audioFilePath: String,
+    conversationState: ConversationState,
+    replayPlayer: MediaPlayer?,
+    onReplayPlayerChanged: (MediaPlayer?) -> Unit,
+) {
+    IconButton(
+        enabled = conversationState == ConversationState.Idle,
+        onClick = {
+            replayPlayer?.stop()
+            replayPlayer?.release()
+            onReplayPlayerChanged(null)
+
+            val player = MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build(),
+                )
+                setDataSource(audioFilePath)
+                prepare()
+                setOnCompletionListener {
+                    it.release()
+                    onReplayPlayerChanged(null)
+                }
+                start()
+            }
+            onReplayPlayerChanged(player)
+        },
+        modifier = Modifier.size(36.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Default.PlayArrow,
+            contentDescription = "Replay audio",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
