@@ -46,3 +46,5 @@ app/src/main/assets/vits-piper-en_US-amy-medium/
 app/libs/*.aar
 
 # End of https://www.toptal.com/developers/gitignore/api/kotlin
+
+.tickets/
