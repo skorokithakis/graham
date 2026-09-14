@@ -16,6 +16,8 @@
 
 # Package Files #
 *.jar
+# The Gradle wrapper jar is required for ./gradlew to work, so it must be committed
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
