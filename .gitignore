@@ -42,7 +42,7 @@ local.properties
 *.onnx
 app/src/main/assets/parakeet-tdt-ctc-110m/
 app/src/main/assets/whisper-base/
-app/src/main/assets/vits-piper-en_US-amy-low/
+app/src/main/assets/vits-piper-en_US-amy-medium/
 app/libs/*.aar
 
 # End of https://www.toptal.com/developers/gitignore/api/kotlin

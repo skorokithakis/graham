@@ -16,15 +16,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.InputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 private const val TAG = "PiperTtsManager"
-private const val ASSET_DIR = "vits-piper-en_US-amy-low"
-private const val MODEL_FILE = "en_US-amy-low.onnx"
+private const val ASSET_DIR = "vits-piper-en_US-amy-medium"
+private const val MODEL_FILE = "en_US-amy-medium.onnx"
 private const val TOKENS_FILE = "tokens.txt"
 private const val ESPEAK_DATA_DIR = "espeak-ng-data"
+
+// Voice bundled by earlier releases. Kept only to clean up the orphaned on-disk
+// copy on upgrade; this can be dropped in a later release.
+private const val LEGACY_ASSET_DIR = "vits-piper-en_US-amy-low"
 
 class PiperTtsManager(private val context: Context) {
     private var tts: OfflineTts? = null
@@ -34,53 +37,12 @@ class PiperTtsManager(private val context: Context) {
 
     // Copies the model files from assets to the filesystem on first launch so that
     // espeak-ng (which reads files by path, not via AssetManager) can find them.
-    // A sentinel file is written after a successful copy so that a partial copy from a
-    // previous crash is detected and re-done rather than silently used.
-    private fun ensureModelOnDisk(): File {
-        val modelDir = File(context.filesDir, ASSET_DIR)
-        val sentinel = File(modelDir, ".copy_complete")
-
-        if (modelDir.exists() && !sentinel.exists()) {
-            Log.w(TAG, "Model directory exists but sentinel is missing; re-copying")
-            modelDir.deleteRecursively()
-        }
-
-        if (modelDir.exists()) {
-            Log.d(TAG, "Model already on disk at ${modelDir.absolutePath}")
-            return modelDir
-        }
-
-        Log.d(TAG, "Copying model from assets to ${modelDir.absolutePath}")
-        modelDir.mkdirs()
-        copyAssetDir(ASSET_DIR, modelDir)
-        sentinel.createNewFile()
-        Log.d(TAG, "Model copy complete")
-        return modelDir
-    }
-
-    private fun copyAssetDir(assetPath: String, destDir: File) {
-        val assets = context.assets.list(assetPath) ?: return
-        for (name in assets) {
-            val childAssetPath = "$assetPath/$name"
-            val destFile = File(destDir, name)
-            val children = context.assets.list(childAssetPath)
-            if (children != null && children.isNotEmpty()) {
-                destFile.mkdirs()
-                copyAssetDir(childAssetPath, destFile)
-            } else {
-                copyAssetFile(childAssetPath, destFile)
-            }
-        }
-    }
-
-    private fun copyAssetFile(assetPath: String, destFile: File) {
-        val inputStream: InputStream = context.assets.open(assetPath)
-        inputStream.use { input ->
-            destFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        }
-    }
+    private fun ensureModelOnDisk(): File = ModelAssets.ensureOnDisk(
+        context = context,
+        assetDir = ASSET_DIR,
+        tag = TAG,
+        legacyDirName = LEGACY_ASSET_DIR,
+    )
 
     suspend fun initialize(): Unit = withContext(Dispatchers.Default) {
         Log.d(TAG, "Initializing PiperTtsManager")

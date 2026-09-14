@@ -75,7 +75,7 @@ fun AboutScreen() {
         listOf(
             "UI: Jetpack Compose + Material 3",
             "STT: sherpa-onnx Parakeet TDT-CTC 110M + Silero VAD",
-            "TTS: sherpa-onnx Piper VITS (en_US-amy-low)",
+            "TTS: sherpa-onnx Piper VITS (en_US-amy-medium)",
             "HTTP: OkHttp 4",
         ).forEach { line ->
             Text(
@@ -108,10 +108,10 @@ fun ModelStatusScreen() {
     }
 
     val piperStatuses = remember {
-        val directory = File(context.filesDir, "vits-piper-en_US-amy-low")
+        val directory = File(context.filesDir, "vits-piper-en_US-amy-medium")
         val fileNames = listOf(
-            "en_US-amy-low.onnx",
-            "en_US-amy-low.onnx.json",
+            "en_US-amy-medium.onnx",
+            "en_US-amy-medium.onnx.json",
             "tokens.txt",
         )
         val fileStatuses = fileNames.map { filename ->
@@ -172,7 +172,7 @@ fun ModelStatusScreen() {
 
         ModelSection(title = "Parakeet (filesDir/parakeet-tdt-ctc-110m)", statuses = asrStatuses)
         ModelSection(
-            title = "Piper (filesDir/vits-piper-en_US-amy-low)",
+            title = "Piper (filesDir/vits-piper-en_US-amy-medium)",
             statuses = piperStatuses,
         )
         ModelSection(title = "Sherpa runtime", statuses = sherpaStatuses)

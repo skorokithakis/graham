@@ -31,31 +31,31 @@ download_if_missing \
 	"$ASSETS_DIR/parakeet-tdt-ctc-110m/silero_vad.onnx" \
 	"https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
 
-echo "Downloading Piper TTS model (en_US-amy-low)..."
-mkdir -p "$ASSETS_DIR/vits-piper-en_US-amy-low"
+echo "Downloading Piper TTS model (en_US-amy-medium)..."
+mkdir -p "$ASSETS_DIR/vits-piper-en_US-amy-medium"
 download_if_missing \
-	"$ASSETS_DIR/vits-piper-en_US-amy-low/en_US-amy-low.onnx" \
-	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-low/resolve/main/en_US-amy-low.onnx"
+	"$ASSETS_DIR/vits-piper-en_US-amy-medium/en_US-amy-medium.onnx" \
+	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-medium/resolve/main/en_US-amy-medium.onnx"
 download_if_missing \
-	"$ASSETS_DIR/vits-piper-en_US-amy-low/en_US-amy-low.onnx.json" \
-	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-low/resolve/main/en_US-amy-low.onnx.json"
+	"$ASSETS_DIR/vits-piper-en_US-amy-medium/en_US-amy-medium.onnx.json" \
+	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-medium/resolve/main/en_US-amy-medium.onnx.json"
 download_if_missing \
-	"$ASSETS_DIR/vits-piper-en_US-amy-low/tokens.txt" \
-	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-low/resolve/main/tokens.txt"
+	"$ASSETS_DIR/vits-piper-en_US-amy-medium/tokens.txt" \
+	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-medium/resolve/main/tokens.txt"
 download_if_missing \
-	"$ASSETS_DIR/vits-piper-en_US-amy-low/MODEL_CARD" \
-	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-low/resolve/main/MODEL_CARD"
+	"$ASSETS_DIR/vits-piper-en_US-amy-medium/MODEL_CARD" \
+	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-medium/resolve/main/MODEL_CARD"
 
 echo "Downloading Piper espeak-ng-data directory..."
-python - "$ASSETS_DIR/vits-piper-en_US-amy-low" <<'PY'
+python - "$ASSETS_DIR/vits-piper-en_US-amy-medium" <<'PY'
 import json
 import os
 import sys
 from urllib.request import Request, urlopen
 
 target_dir = sys.argv[1]
-api_url = "https://huggingface.co/api/models/csukuangfj/vits-piper-en_US-amy-low"
-base_url = "https://huggingface.co/csukuangfj/vits-piper-en_US-amy-low/resolve/main/"
+api_url = "https://huggingface.co/api/models/csukuangfj/vits-piper-en_US-amy-medium"
+base_url = "https://huggingface.co/csukuangfj/vits-piper-en_US-amy-medium/resolve/main/"
 
 request = Request(api_url, headers={"User-Agent": "graham-download-script"})
 with urlopen(request, timeout=60) as response:

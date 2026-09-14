@@ -22,7 +22,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.InputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -56,54 +55,12 @@ class SpeechRecognizer(
     @Volatile private var isListening = false
 
     // Copies model files from assets to filesDir on first launch so that sherpa-onnx
-    // (which reads files by path, not via AssetManager) can find them. A sentinel file
-    // is written after a successful copy so that a partial copy from a previous crash is
-    // detected and re-done rather than silently used.
-    private fun ensureModelsOnDisk(): File {
-        val modelDir = File(context.filesDir, ASSET_DIR)
-        val sentinel = File(modelDir, ".copy_complete")
-
-        if (modelDir.exists() && !sentinel.exists()) {
-            Log.w(TAG, "Model directory exists but sentinel is missing; re-copying")
-            modelDir.deleteRecursively()
-        }
-
-        if (modelDir.exists()) {
-            Log.d(TAG, "Models already on disk at ${modelDir.absolutePath}")
-            return modelDir
-        }
-
-        Log.d(TAG, "Copying models from assets to ${modelDir.absolutePath}")
-        modelDir.mkdirs()
-        copyAssetDir(ASSET_DIR, modelDir)
-        sentinel.createNewFile()
-        Log.d(TAG, "Model copy complete")
-        return modelDir
-    }
-
-    private fun copyAssetDir(assetPath: String, destDir: File) {
-        val assets = context.assets.list(assetPath) ?: return
-        for (name in assets) {
-            val childAssetPath = "$assetPath/$name"
-            val destFile = File(destDir, name)
-            val children = context.assets.list(childAssetPath)
-            if (children != null && children.isNotEmpty()) {
-                destFile.mkdirs()
-                copyAssetDir(childAssetPath, destFile)
-            } else {
-                copyAssetFile(childAssetPath, destFile)
-            }
-        }
-    }
-
-    private fun copyAssetFile(assetPath: String, destFile: File) {
-        val inputStream: InputStream = context.assets.open(assetPath)
-        inputStream.use { input ->
-            destFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        }
-    }
+    // (which reads files by path, not via AssetManager) can find them.
+    private fun ensureModelsOnDisk(): File = ModelAssets.ensureOnDisk(
+        context = context,
+        assetDir = ASSET_DIR,
+        tag = TAG,
+    )
 
     suspend fun initialize(): Unit = withContext(Dispatchers.IO) {
         Log.d(TAG, "Initializing SpeechRecognizer")
