@@ -51,6 +51,7 @@ python3 - "$ASSETS_DIR/vits-piper-en_US-amy-medium" <<'PY'
 import json
 import os
 import sys
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 target_dir = sys.argv[1]
@@ -74,7 +75,10 @@ for relative_path in espeak_paths:
         continue
 
     os.makedirs(os.path.dirname(destination), exist_ok=True)
-    source_url = base_url + relative_path
+    # Some espeak voice files have spaces in their names (e.g. "voices/!v/Mr serious").
+    # Those must be percent-encoded or http.client rejects the request. "!" is left
+    # literal because the server accepts it and encoding it is an unnecessary change.
+    source_url = base_url + quote(relative_path, safe="/!")
     print(f"Downloading {relative_path}")
 
     file_request = Request(source_url, headers={"User-Agent": "graham-download-script"})
