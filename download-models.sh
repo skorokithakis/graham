@@ -47,7 +47,7 @@ download_if_missing \
 	"https://huggingface.co/csukuangfj/vits-piper-en_US-amy-medium/resolve/main/MODEL_CARD"
 
 echo "Downloading Piper espeak-ng-data directory..."
-python - "$ASSETS_DIR/vits-piper-en_US-amy-medium" <<'PY'
+python3 - "$ASSETS_DIR/vits-piper-en_US-amy-medium" <<'PY'
 import json
 import os
 import sys
